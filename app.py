@@ -295,6 +295,8 @@ def get_leaderboard():
 def check_duplicate(candidate_name, evaluator_name):
     """
     Checks if this evaluator has already scored this candidate.
+    CRITICAL FIX: .strip() is applied to BOTH inputs before the SQL query
+    to prevent false negatives caused by leading/trailing whitespace.
 
     Returns:
         bool: True if a duplicate exists, False otherwise
@@ -302,17 +304,51 @@ def check_duplicate(candidate_name, evaluator_name):
     conn = sqlite3.connect('evaluations.db')
     cursor = conn.cursor()
 
+    # FIXED: Strip whitespace from inputs before querying
+    clean_candidate = candidate_name.strip()
+    clean_evaluator = evaluator_name.strip()
+
     # Count how many rows match this exact evaluator-candidate pair
     cursor.execute('''
         SELECT COUNT(*) FROM scores
         WHERE candidate_name = ? AND evaluator_name = ?
-    ''', (candidate_name, evaluator_name))
+    ''', (clean_candidate, clean_evaluator))
 
     count = cursor.fetchone()[0]
     conn.close()
 
     # If count > 0, this evaluator has already scored this candidate
     return count > 0
+
+
+def delete_score(score_id):
+    """
+    Deletes a single evaluation record from the 'scores' table by ID.
+
+    Uses a parameterized query (?) to prevent SQL injection.
+    After deletion, the caller must trigger st.rerun() to refresh
+    all summary metrics, podium, and leaderboard views.
+
+    Parameters:
+        score_id (int): The primary key ID of the row to delete
+
+    Returns:
+        bool: True if deletion succeeded, False otherwise
+    """
+    try:
+        conn = sqlite3.connect('evaluations.db')
+        cursor = conn.cursor()
+
+        # Parameterized DELETE — the ? placeholder prevents injection
+        cursor.execute('DELETE FROM scores WHERE id = ?', (score_id,))
+
+        conn.commit()
+        conn.close()
+        return True
+
+    except Exception as e:
+        st.error(f"Delete failed: {e}")
+        return False
 
 
 # ============================================================================
@@ -389,8 +425,9 @@ st.markdown("""
     .rank-bronze { color: #CD7F32; font-weight: 800; font-size: 1.3rem; }
 
     /* ---- Sidebar polish ---- */
+    /* FIXED: Replaced gradient with a clean, single-tone neutral color */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+        background: #262730;
     }
     [data-testid="stSidebar"] * {
         color: #e0e0e0 !important;
@@ -399,6 +436,15 @@ st.markdown("""
     /* ---- Hide Streamlit branding ---- */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+
+    /* ---- Mobile Responsiveness ---- */
+    /* Hide Streamlit chrome on mobile for a native app feel */
+    @media (max-width: 768px) {
+        #MainMenu {visibility: hidden !important;}
+        footer {visibility: hidden !important;}
+        header[data-testid="stHeader"] {display: none !important;}
+        .block-container {padding-top: 1rem !important;}
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -410,28 +456,11 @@ st.markdown("""
 # ============================================================================
 
 with st.sidebar:
-    st.markdown("## Navigation")
-    st.markdown("---")
-
-    # Radio buttons for page selection
-    # Streamlit reruns the entire script on every interaction,
-    # so this variable is freshly set on each page load.
+    # SIMPLIFIED: Removed Navigation heading and About section per UI polish spec
     page = st.radio(
         "Select a view:",
         ["Score Entry", "Live Leaderboard", "Raw Data"],
         label_visibility="collapsed"
-    )
-
-    st.markdown("---")
-    st.markdown("### About")
-    st.markdown(
-        "This app replaces manual Excel "
-        "sheets for evaluating candidates "
-        "at college club recruitment events."
-    )
-    st.markdown(
-        f"**Database:** `evaluations.db`  \n"
-        f"**Engine:** SQLite + Pandas"
     )
 
 
@@ -707,7 +736,7 @@ elif page == "Raw Data":
     if raw_df.empty:
         st.info("No evaluations recorded yet.")
     else:
-        # Show the raw data with clean column names
+        # Show the raw data with clean column names (keep 'id' for delete)
         display_raw = raw_df.rename(columns={
             'candidate_name':  'Candidate',
             'evaluator_name':  'Evaluator',
@@ -716,17 +745,37 @@ elif page == "Raw Data":
             'overall_fit':     'Overall Fit',
             'total_score':     'Total',
             'submitted_at':    'Submitted At',
-        }).drop(columns=['id'])
+        })
 
         st.dataframe(
-            display_raw,
+            display_raw.drop(columns=['id']),
             use_container_width=True,
             hide_index=True
         )
 
+        # ---- Delete Individual Records ----
+        # Renders a delete button per row for data correction
+        st.markdown("---")
+        st.markdown("#### Delete a Record")
+        st.caption("Select a record to permanently remove. This cannot be undone.")
+
+        for idx, row in raw_df.iterrows():
+            col_info, col_btn = st.columns([5, 1])
+            with col_info:
+                st.text(
+                    f"{row['candidate_name']} by {row['evaluator_name']} "
+                    f"— Total: {row['total_score']} ({row['submitted_at']})"
+                )
+            with col_btn:
+                if st.button("Delete", key=f"del_{row['id']}", type="secondary"):
+                    if delete_score(int(row['id'])):
+                        st.toast("Record deleted successfully.")
+                        st.rerun()  # Refresh metrics, podium, leaderboard
+
+        st.markdown("---")
+
         # ---- Download as CSV ----
-        # Convert the DataFrame to CSV format for download
-        csv_data = display_raw.to_csv(index=False)
+        csv_data = display_raw.drop(columns=['id']).to_csv(index=False)
         st.download_button(
             label="Download as CSV",
             data=csv_data,
