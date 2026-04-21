@@ -349,10 +349,99 @@ st.markdown("""
 
     /* ---- Mobile Responsiveness ---- */
     @media (max-width: 768px) {
-        #MainMenu {visibility: hidden !important;}
         footer {visibility: hidden !important;}
-        header[data-testid="stHeader"] {display: none !important;}
         .block-container {padding-top: 1rem !important;}
+        .score-preview .total-number { font-size: 2.2rem; }
+        .score-breakdown { flex-wrap: wrap; gap: 0.5rem; }
+    }
+
+    /* ---- Mobile Menu Hint ---- */
+    .mobile-menu-hint {
+        display: none;
+        position: fixed;
+        top: 12px;
+        left: 60px;
+        background: #2563EB;
+        color: #ffffff;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        z-index: 9999;
+        box-shadow: 0 2px 10px rgba(37,99,235,0.35);
+        animation: pulseHint 2s ease-in-out infinite;
+        pointer-events: none;
+        font-family: 'Inter', sans-serif;
+    }
+    .mobile-menu-hint::before {
+        content: '\2190 ';
+        font-size: 0.85rem;
+    }
+    @keyframes pulseHint {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.04); }
+    }
+    @media (max-width: 768px) {
+        .mobile-menu-hint { display: block; }
+    }
+
+    /* ---- Onboarding Tutorial (Streamlit-native card) ---- */
+    .tutorial-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 60vh;
+    }
+    .tutorial-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 2.5rem 2rem 2rem;
+        max-width: 420px;
+        width: 100%;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        text-align: center;
+        font-family: 'Inter', sans-serif;
+    }
+    .tutorial-card .step-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+    .tutorial-card h3 {
+        margin: 0 0 0.6rem 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1a1a2e;
+    }
+    .tutorial-card p {
+        margin: 0 0 1.5rem 0;
+        font-size: 0.92rem;
+        color: #6b7280;
+        line-height: 1.6;
+    }
+    .tutorial-dots {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        margin-bottom: 0.5rem;
+    }
+    .tutorial-dots .dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: #d1d5db;
+        transition: all 0.2s ease;
+    }
+    .tutorial-dots .dot.active {
+        background: #2563EB;
+        width: 24px;
+        border-radius: 4px;
+    }
+    .tutorial-step-counter {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        margin-top: 0.3rem;
+        letter-spacing: 0.5px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -367,6 +456,140 @@ with st.sidebar:
         ["Score Entry", "Live Leaderboard", "Raw Data"],
         label_visibility="collapsed"
     )
+
+
+# ============================================================================
+# SECTION 6b: MOBILE MENU HINT + ONBOARDING TUTORIAL
+# ============================================================================
+# Mobile users can't see the sidebar by default. We show:
+# 1. A floating blue pill next to the hamburger icon saying "Menu"
+# 2. A first-time onboarding tutorial explaining how to use the app.
+#
+# ARCHITECTURE NOTE:
+#   Streamlit cannot reliably layer fixed HTML overlays over its own buttons
+#   (z-index conflicts). Instead, we use a Streamlit-native approach:
+#   render a centered tutorial card, then call st.stop() to prevent the
+#   rest of the app from rendering.  The user must complete or skip the
+#   tutorial before they can interact with the main app.
+# ============================================================================
+
+# ---- Persistent floating menu hint for mobile (always visible) ----
+st.markdown('<div class="mobile-menu-hint">Menu</div>', unsafe_allow_html=True)
+
+# ---- Onboarding Tutorial ----
+TUTORIAL_STEPS = [
+    {
+        "icon": "\U0001F44B",
+        "title": "Welcome to the Evaluation App",
+        "body": "This quick guide will show you how to score candidates. Takes just 10 seconds."
+    },
+    {
+        "icon": "\u2630",
+        "title": "Open the Menu",
+        "body": "Tap the menu icon at the top-left corner to switch between Score Entry, Live Leaderboard, and Raw Data."
+    },
+    {
+        "icon": "\U0001F4DD",
+        "title": "Submit a Score",
+        "body": "Enter the candidate name and your name, drag the sliders to rate them (1-10), then tap Submit Scores."
+    },
+    {
+        "icon": "\U0001F4CA",
+        "title": "View the Leaderboard",
+        "body": "Open the Menu and select Live Leaderboard to see real-time rankings and comparison charts."
+    },
+    {
+        "icon": "\U0001F680",
+        "title": "You're All Set!",
+        "body": "That's everything you need. Your scores are saved automatically. Happy evaluating!"
+    },
+]
+
+# Initialize tutorial state
+if "tutorial_done" not in st.session_state:
+    st.session_state.tutorial_done = False
+if "tutorial_step" not in st.session_state:
+    st.session_state.tutorial_step = 0
+
+# Show the tutorial if not dismissed — then st.stop() to block the main app
+if not st.session_state.tutorial_done:
+    step = TUTORIAL_STEPS[st.session_state.tutorial_step]
+    total = len(TUTORIAL_STEPS)
+    current = st.session_state.tutorial_step
+
+    # Build dot indicators
+    dots_html = ""
+    for i in range(total):
+        cls = "dot active" if i == current else "dot"
+        dots_html += f'<div class="{cls}"></div>'
+
+    # ---- Centered tutorial card (Streamlit-native) ----
+    spacer_top, card_col, spacer_bottom = st.columns([1, 2, 1])
+
+    with card_col:
+        st.markdown(
+            f'<div class="tutorial-wrapper">'
+            f'  <div class="tutorial-card">'
+            f'    <span class="step-icon">{step["icon"]}</span>'
+            f'    <h3>{step["title"]}</h3>'
+            f'    <p>{step["body"]}</p>'
+            f'    <div class="tutorial-dots">{dots_html}</div>'
+            f'    <div class="tutorial-step-counter">STEP {current + 1} OF {total}</div>'
+            f'  </div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+
+        # ---- Navigation buttons (inside the same column, below the card) ----
+        if current == 0:
+            # First step: Skip | Next
+            b_left, b_right = st.columns(2)
+            with b_left:
+                if st.button("Skip Tutorial", key="tut_skip",
+                             use_container_width=True):
+                    st.session_state.tutorial_done = True
+                    st.rerun()
+            with b_right:
+                if st.button("Next", key="tut_next", type="primary",
+                             use_container_width=True):
+                    st.session_state.tutorial_step += 1
+                    st.rerun()
+
+        elif current < total - 1:
+            # Middle steps: Back | Skip | Next
+            b1, b2, b3 = st.columns(3)
+            with b1:
+                if st.button("Back", key="tut_back",
+                             use_container_width=True):
+                    st.session_state.tutorial_step -= 1
+                    st.rerun()
+            with b2:
+                if st.button("Skip", key="tut_skip",
+                             use_container_width=True):
+                    st.session_state.tutorial_done = True
+                    st.rerun()
+            with b3:
+                if st.button("Next", key="tut_next", type="primary",
+                             use_container_width=True):
+                    st.session_state.tutorial_step += 1
+                    st.rerun()
+
+        else:
+            # Last step: Back | Get Started
+            b_left, b_right = st.columns(2)
+            with b_left:
+                if st.button("Back", key="tut_back",
+                             use_container_width=True):
+                    st.session_state.tutorial_step -= 1
+                    st.rerun()
+            with b_right:
+                if st.button("Get Started", key="tut_finish", type="primary",
+                             use_container_width=True):
+                    st.session_state.tutorial_done = True
+                    st.rerun()
+
+    # Block the rest of the app from rendering during the tutorial
+    st.stop()
 
 
 # ============================================================================
