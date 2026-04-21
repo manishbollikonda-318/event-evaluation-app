@@ -1,12 +1,12 @@
 """
 ==============================================================================
- EVENT EVALUATION APP — College Club Recruitment & Event Scoring Platform
+ EVENT EVALUATION APP — Enterprise Scoring Platform
 ==============================================================================
  A single-file Streamlit + SQLite application that replaces spreadsheet-based
  evaluation with a structured, real-time scoring system.
 
  Run with:  streamlit run app.py
- Requires:  pip install streamlit pandas
+ Requires:  pip install streamlit pandas plotly
 ==============================================================================
 """
 
@@ -14,73 +14,20 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 from datetime import datetime
+import plotly.graph_objects as go
 
 
 # ============================================================================
 # SECTION 1: DATABASE INITIALIZATION
 # ============================================================================
-# We use SQLite — a lightweight, file-based relational database that ships
-# with Python's standard library (no extra install needed).
-#
-# The function below creates the database file ('evaluations.db') and the
-# 'scores' table if they don't already exist. This is safe to call every
-# time the app starts because of the "IF NOT EXISTS" clause.
-# ============================================================================
-
 def init_database():
     """
     Creates the SQLite database and the 'scores' table.
-
-    TABLE STRUCTURE:
-    ┌────────────────────────────────────────────────────────────────┐
-    │                         scores                                 │
-    ├──────────────────┬─────────┬───────────────────────────────────┤
-    │ Column           │ Type    │ Purpose                           │
-    ├──────────────────┼─────────┼───────────────────────────────────┤
-    │ id               │ INTEGER │ Auto-incrementing primary key     │
-    │ candidate_name   │ TEXT    │ Name of the person being scored   │
-    │ evaluator_name   │ TEXT    │ Name of the judge/evaluator       │
-    │ technical_score  │ INTEGER │ Technical ability rating (1-10)   │
-    │ communication    │ INTEGER │ Communication skills rating (1-10)│
-    │ overall_fit      │ INTEGER │ Cultural/team fit rating (1-10)   │
-    │ total_score      │ INTEGER │ Sum of all three criteria         │
-    │ submitted_at     │ TEXT    │ Timestamp of when score was saved │
-    └──────────────────┴─────────┴───────────────────────────────────┘
-
-    HOW IT WORKS (for explaining to your senior):
-    -----------------------------------------------
-    1. sqlite3.connect('evaluations.db')
-       → Opens (or creates) a file called 'evaluations.db' in the same
-         directory as this script. This IS the entire database — one file.
-
-    2. cursor = conn.cursor()
-       → A cursor is like a "pointer" that lets us send SQL commands to
-         the database and read results back.
-
-    3. CREATE TABLE IF NOT EXISTS scores (...)
-       → This SQL command defines the table structure. "IF NOT EXISTS"
-         means it only creates the table the first time — on subsequent
-         runs, it safely does nothing.
-
-    4. conn.commit()
-       → Saves the changes to disk. Without this, the table creation
-         would be lost when the connection closes.
-
-    5. conn.close()
-       → Releases the database file so other parts of the app can use it.
+    Uses timeout=15 to handle multiple concurrent users safely.
     """
-
-    # Step 1: Open a connection to the SQLite database file
-    conn = sqlite3.connect('evaluations.db')
-
-    # Step 2: Create a cursor object to execute SQL commands
+    conn = sqlite3.connect('evaluations.db', timeout=15)
     cursor = conn.cursor()
 
-    # Step 3: Execute the CREATE TABLE statement
-    # - "id INTEGER PRIMARY KEY AUTOINCREMENT" means SQLite will automatically
-    #   assign a unique ID (1, 2, 3, ...) to each new row — we never set this manually.
-    # - "NOT NULL" means the field is required — the database will reject inserts
-    #   that leave these fields empty.
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS scores (
             id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,74 +41,25 @@ def init_database():
         )
     ''')
 
-    # Step 4: Commit (save) the transaction to disk
     conn.commit()
-
-    # Step 5: Close the connection
     conn.close()
 
 
 # ============================================================================
 # SECTION 2: DATABASE INSERT OPERATION
 # ============================================================================
-# This function takes the form data and writes it as a new row in the
-# 'scores' table. It uses PARAMETERIZED QUERIES (the ? placeholders)
-# to prevent SQL injection attacks.
-# ============================================================================
-
 def insert_score(candidate_name, evaluator_name, technical, communication, fit):
     """
     Inserts a single evaluation record into the 'scores' table.
-
-    HOW THE INSERT WORKS (for explaining to your senior):
-    ------------------------------------------------------
-    1. We calculate 'total_score' in Python before inserting.
-       This is a DENORMALIZATION — we store a computed value to avoid
-       recalculating it on every leaderboard query. The trade-off is
-       slightly redundant data for much faster reads.
-
-    2. The INSERT statement uses "?" placeholders instead of f-strings:
-       SAFE:     cursor.execute("INSERT ... VALUES (?, ?, ?)", (a, b, c))
-       UNSAFE:   cursor.execute(f"INSERT ... VALUES ('{a}', '{b}', '{c}')")
-
-       The safe version prevents SQL injection — a security attack where
-       a malicious user types SQL commands into the form fields.
-
-    3. conn.commit() is called AFTER the insert to make it permanent.
-       If the app crashes between execute() and commit(), the row is
-       NOT saved — this is the "Atomicity" part of ACID guarantees.
-
-    Parameters:
-        candidate_name (str): Name of the candidate being evaluated
-        evaluator_name (str): Name of the evaluator submitting the score
-        technical (int):      Technical score (1-10)
-        communication (int):  Communication score (1-10)
-        fit (int):            Overall fit score (1-10)
-
-    Returns:
-        bool: True if insert succeeded, False if it failed
     """
-
-    # Calculate the total score (sum of all three criteria)
     total_score = technical + communication + fit
-
-    # Record the exact time of submission for the audit trail
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     try:
-        # Open a fresh connection for this write operation
-        conn = sqlite3.connect('evaluations.db')
+        # timeout=15 prevents "database is locked" errors during simultaneous submissions
+        conn = sqlite3.connect('evaluations.db', timeout=15)
         cursor = conn.cursor()
 
-        # Execute the parameterized INSERT statement
-        # Each "?" corresponds to one value in the tuple, in order:
-        #   ?1 = candidate_name
-        #   ?2 = evaluator_name
-        #   ?3 = technical
-        #   ?4 = communication
-        #   ?5 = fit
-        #   ?6 = total_score (calculated above)
-        #   ?7 = timestamp
         cursor.execute('''
             INSERT INTO scores (
                 candidate_name,
@@ -174,240 +72,138 @@ def insert_score(candidate_name, evaluator_name, technical, communication, fit):
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (candidate_name, evaluator_name, technical, communication, fit, total_score, timestamp))
 
-        # Commit the transaction — this makes the insert permanent on disk
         conn.commit()
         conn.close()
         return True
 
     except Exception as e:
-        # If anything goes wrong, print the error and return False
-        st.error(f"Database error: {e}")
+        st.error(f"System Error: {e}")
         return False
 
 
 # ============================================================================
 # SECTION 3: DATABASE READ + PANDAS AGGREGATION
 # ============================================================================
-# This function reads ALL scores from the database into a Pandas DataFrame,
-# then uses groupby().agg() to compute per-candidate statistics.
-# ============================================================================
-
 def get_leaderboard():
     """
     Queries all scores and aggregates them into a ranked leaderboard.
-
-    HOW THE PANDAS AGGREGATION WORKS (for explaining to your senior):
-    ------------------------------------------------------------------
-    1. pd.read_sql_query(query, conn)
-       → Executes a SQL SELECT and loads the result directly into a
-         Pandas DataFrame. This is the bridge between SQL and Python.
-
-    2. df.groupby('candidate_name')
-       → Groups all rows by candidate name. If "Alice" was scored by
-         3 different evaluators, those 3 rows become one group.
-
-    3. .agg({ 'total_score': ['sum', 'mean', 'count'] })
-       → For each group (each candidate), compute THREE statistics:
-         - 'sum':   Total of all evaluators' scores combined
-         - 'mean':  Average score across all evaluators
-         - 'count': How many evaluators scored this candidate
-
-       Example:
-       ┌───────────┬─────────┬────────────┬──────────────┬───────┐
-       │ Candidate │ Eval. 1 │ Eval. 2    │ Total (sum)  │ Mean  │
-       ├───────────┼─────────┼────────────┼──────────────┼───────┤
-       │ Alice     │ 24      │ 27         │ 51           │ 25.5  │
-       │ Bob       │ 18      │ 21         │ 39           │ 19.5  │
-       └───────────┴─────────┴────────────┴──────────────┴───────┘
-
-    4. .sort_values(('total_score', 'sum'), ascending=False)
-       → Sorts candidates by their total combined score, highest first.
-         This produces the final leaderboard ranking.
-
-    5. .reset_index()
-       → Converts the grouped result back into a regular DataFrame
-         with a simple integer index (0, 1, 2, ...) for clean display.
-
-    Returns:
-        tuple: (leaderboard_df, raw_scores_df)
-               - leaderboard_df: Aggregated, ranked DataFrame
-               - raw_scores_df:  All individual score entries
     """
-
-    conn = sqlite3.connect('evaluations.db')
-
-    # Read the entire scores table into a Pandas DataFrame
-    # This is equivalent to: SELECT * FROM scores ORDER BY submitted_at DESC
+    conn = sqlite3.connect('evaluations.db', timeout=15)
+    
     raw_df = pd.read_sql_query(
         "SELECT * FROM scores ORDER BY submitted_at DESC",
         conn
     )
-
     conn.close()
 
-    # If the database is empty, return empty DataFrames
     if raw_df.empty:
         return pd.DataFrame(), raw_df
 
-    # ---- AGGREGATION PIPELINE ----
-    # Step 1: Group all score rows by candidate name
-    # Step 2: For the 'total_score' column, calculate sum, mean, and count
-    # Step 3: For individual criteria, calculate the average across evaluators
     leaderboard = raw_df.groupby('candidate_name').agg(
-        # Total combined score from all evaluators
         total_combined_score=('total_score', 'sum'),
-
-        # Average total score per evaluation
         avg_score=('total_score', 'mean'),
-
-        # Number of evaluators who scored this candidate
         num_evaluations=('total_score', 'count'),
-
-        # Average of each individual criterion across all evaluators
         avg_technical=('technical_score', 'mean'),
         avg_communication=('communication', 'mean'),
         avg_fit=('overall_fit', 'mean'),
-
     ).sort_values(
-        # Sort by total combined score, descending (highest first)
         'total_combined_score', ascending=False
-
     ).reset_index()
 
-    # Round the averages to 1 decimal place for clean display
     leaderboard['avg_score'] = leaderboard['avg_score'].round(1)
     leaderboard['avg_technical'] = leaderboard['avg_technical'].round(1)
     leaderboard['avg_communication'] = leaderboard['avg_communication'].round(1)
     leaderboard['avg_fit'] = leaderboard['avg_fit'].round(1)
 
-    # Add a rank column (1st, 2nd, 3rd, ...)
     leaderboard.insert(0, 'Rank', range(1, len(leaderboard) + 1))
 
     return leaderboard, raw_df
 
 
 # ============================================================================
-# SECTION 4: REMOVED — DUPLICATE CHECK NO LONGER REQUIRED
+# SECTION 4: DATA DELETION
 # ============================================================================
-# Business logic change: Evaluators may now score the same candidate multiple
-# times (e.g., for different rounds). The check_duplicate function has been
-# intentionally removed.
-# ============================================================================
-
-
 def delete_score(score_id):
     """
     Deletes a single evaluation record from the 'scores' table by ID.
-
-    Uses a parameterized query (?) to prevent SQL injection.
-    After deletion, the caller must trigger st.rerun() to refresh
-    all summary metrics, podium, and leaderboard views.
-
-    Parameters:
-        score_id (int): The primary key ID of the row to delete
-
-    Returns:
-        bool: True if deletion succeeded, False otherwise
     """
     try:
-        conn = sqlite3.connect('evaluations.db')
+        conn = sqlite3.connect('evaluations.db', timeout=15)
         cursor = conn.cursor()
-
-        # Parameterized DELETE — the ? placeholder prevents injection
         cursor.execute('DELETE FROM scores WHERE id = ?', (score_id,))
-
         conn.commit()
         conn.close()
         return True
 
     except Exception as e:
-        st.error(f"Delete failed: {e}")
+        st.error(f"Deletion Failed: {e}")
         return False
 
 
 # ============================================================================
-# SECTION 5: STREAMLIT UI — PAGE CONFIGURATION
+# SECTION 5: STREAMLIT UI — PAGE CONFIGURATION & ENTERPRISE CSS
 # ============================================================================
-# This section configures the Streamlit page and initializes the database.
-# ============================================================================
-
-# Set the browser tab title and page layout
 st.set_page_config(
-    page_title="Event Evaluation App",
-    page_icon="E",
+    page_title="Evaluation Terminal",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Initialize the database on first run
-# (safe to call multiple times — CREATE TABLE IF NOT EXISTS)
 init_database()
 
-# ---- CUSTOM STYLING ----
-# Inject custom CSS to enhance the default Streamlit look
 st.markdown("""
 <style>
-    /* ---- Main header styling ---- */
+    /* ---- Main Typography ---- */
     .main-header {
         font-size: 2.2rem;
-        font-weight: 700;
-        color: #1a1a2e;
+        font-weight: 600;
+        color: #e0e0e0;
         margin-bottom: 0.2rem;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
     .sub-header {
-        font-size: 1.1rem;
-        color: #6c757d;
+        font-size: 1rem;
+        color: #888888;
         margin-bottom: 2rem;
     }
 
-    /* ---- Metric cards ---- */
-    /* ---- Metric cards with hover animation ---- */
+    /* ---- Enterprise Metric Cards (Bloomberg Style) ---- */
     .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #111111;
+        border: 1px solid #333333;
+        border-left: 4px solid #00ffcc;
         padding: 1.5rem;
-        border-radius: 12px;
+        border-radius: 4px;
         color: white;
-        text-align: center;
+        text-align: left;
         margin-bottom: 1rem;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        transition: all 0.3s ease;
+        transition: all 0.2s ease;
         cursor: default;
     }
     .metric-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+        background: #1a1a1a;
+        border-left: 4px solid #00ccaa;
+        transform: translateY(-2px);
     }
     .metric-card h3 {
         margin: 0;
-        font-size: 2rem;
+        font-size: 2.2rem;
         font-weight: 700;
+        color: #00ffcc;
+        font-family: 'Courier New', Courier, monospace;
     }
     .metric-card p {
         margin: 0.3rem 0 0 0;
-        font-size: 0.9rem;
-        opacity: 0.85;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #888888;
     }
-
-    /* ---- Success banner ---- */
-    .success-banner {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-        padding: 1rem 1.5rem;
-        border-radius: 10px;
-        color: white;
-        font-weight: 600;
-        font-size: 1rem;
-        margin: 1rem 0;
-        box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3);
-    }
-
-    /* ---- Leaderboard rank badges ---- */
-    .rank-gold   { color: #FFD700; font-weight: 800; font-size: 1.3rem; }
-    .rank-silver { color: #C0C0C0; font-weight: 800; font-size: 1.3rem; }
-    .rank-bronze { color: #CD7F32; font-weight: 800; font-size: 1.3rem; }
 
     /* ---- Sidebar polish ---- */
     [data-testid="stSidebar"] {
-        background: #262730;
+        background: #0e1117;
+        border-right: 1px solid #333333;
     }
     [data-testid="stSidebar"] * {
         color: #e0e0e0 !important;
@@ -419,21 +215,21 @@ st.markdown("""
 
     /* ---- Page fade-in animation ---- */
     @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
+        from { opacity: 0; transform: translateY(5px); }
         to   { opacity: 1; transform: translateY(0); }
     }
     .block-container {
-        animation: fadeIn 0.4s ease-out;
+        animation: fadeIn 0.3s ease-out;
     }
 
     /* ---- Modern slider styling ---- */
     .stSlider > div > div > div > div {
-        background: linear-gradient(90deg, #667eea, #764ba2) !important;
+        background: #00ffcc !important;
     }
     .stSlider [role="slider"] {
-        background-color: #667eea !important;
-        border: 2px solid #fff !important;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5) !important;
+        background-color: #ffffff !important;
+        border: 2px solid #00ffcc !important;
+        box-shadow: none !important;
     }
 
     /* ---- Mobile Responsiveness ---- */
@@ -450,11 +246,7 @@ st.markdown("""
 # ============================================================================
 # SECTION 6: SIDEBAR NAVIGATION
 # ============================================================================
-# The sidebar acts as the primary navigation between the two views.
-# ============================================================================
-
 with st.sidebar:
-    # SIMPLIFIED: Removed Navigation heading and About section per UI polish spec
     page = st.radio(
         "Select a view:",
         ["Score Entry", "Live Leaderboard", "Raw Data"],
@@ -463,112 +255,69 @@ with st.sidebar:
 
 
 # ============================================================================
-# SECTION 7: SCORE ENTRY PAGE (REFACTORED — NO st.form)
+# SECTION 7: SCORE ENTRY PAGE (REAL-TIME UPDATES)
 # ============================================================================
-# The st.form wrapper has been REMOVED so that sliders trigger immediate
-# app reruns. This allows the "Total Score" preview to update in real-time
-# as the user drags each slider — no submit required to see the total.
-#
-# Trade-off: Each slider change causes a rerun, but Streamlit handles this
-# efficiently (~50ms per rerun on SQLite). The UX gain outweighs the cost.
-#
-# Manual state clearing replaces clear_on_submit=True. A callback function
-# resets all widget keys in st.session_state after a successful submission.
-# ============================================================================
-
-
 def clear_form():
-    """
-    Callback function attached to the Submit button.
-    Resets all form widget values via their session_state keys.
-    This replaces st.form's built-in clear_on_submit=True behavior.
-    """
+    """Callback to clear inputs after submission"""
     st.session_state.cand_name = ""
     st.session_state.eval_name = ""
     st.session_state.tech_slider = 5
     st.session_state.comm_slider = 5
     st.session_state.fit_slider = 5
 
-
 if page == "Score Entry":
+    st.markdown('<p class="main-header">Evaluation Terminal</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">System ready. Awaiting candidate metrics.</p>', unsafe_allow_html=True)
 
-    # ---- Page Header ----
-    st.markdown('<p class="main-header">Score Entry</p>', unsafe_allow_html=True)
-    st.markdown(
-        '<p class="sub-header">'
-        'Evaluate candidates on Technical Skills, Communication, and Overall Fit.'
-        '</p>',
-        unsafe_allow_html=True
-    )
-
-    # ---- Identification Inputs (outside form — immediate rerun on change) ----
-    st.markdown("#### Identification")
+    st.markdown("#### Identity Matrix")
     col1, col2 = st.columns(2)
 
     with col1:
         candidate_name = st.text_input(
-            "Candidate Name",
-            placeholder="e.g., Priya Sharma",
-            key="cand_name"  # Keyed for manual state clearing
+            "Candidate Identifier",
+            key="cand_name"
         )
 
     with col2:
         evaluator_name = st.text_input(
-            "Your Name (Evaluator)",
-            placeholder="e.g., Rahul Verma",
-            key="eval_name"  # Keyed for manual state clearing
+            "Evaluator Identifier",
+            key="eval_name"
         )
 
     st.markdown("---")
-    st.markdown("#### Scoring Criteria")
+    st.markdown("#### Performance Metrics")
 
-    # ---- Sliders (outside form — update total preview in real-time) ----
     col_t, col_c, col_f = st.columns(3)
 
     with col_t:
         technical_score = st.slider(
-            "Technical Skills",
+            "Technical Capacity",
             min_value=1, max_value=10, value=5,
-            key="tech_slider",
-            help="Rate the candidate's technical knowledge and problem-solving ability."
+            key="tech_slider"
         )
 
     with col_c:
         communication_score = st.slider(
-            "Communication",
+            "Communication Interface",
             min_value=1, max_value=10, value=5,
-            key="comm_slider",
-            help="Rate the candidate's clarity, articulation, and presentation skills."
+            key="comm_slider"
         )
 
     with col_f:
         overall_fit_score = st.slider(
-            "Overall Fit",
+            "Organizational Fit",
             min_value=1, max_value=10, value=5,
-            key="fit_slider",
-            help="Rate how well the candidate aligns with the club's culture and goals."
+            key="fit_slider"
         )
 
-    # ---- REAL-TIME Total Score Preview ----
-    # This now updates INSTANTLY on every slider drag because we are
-    # outside st.form. Each slider change triggers a Streamlit rerun,
-    # recalculating this value immediately.
     total_preview = technical_score + communication_score + overall_fit_score
-    st.markdown(f"**Preview — Total Score: `{total_preview}` / 30**")
+    
+    st.markdown(f"**Computed Total:** <span style='color:#00ffcc; font-size: 1.2rem; font-family: monospace;'>{total_preview}</span> / 30", unsafe_allow_html=True)
 
-    # ---- Submission Logic ----
-    # The on_click callback fires AFTER the current rerun completes,
-    # so we capture the current widget values first, insert to DB,
-    # then the callback clears the form for the next entry.
-    if st.button("Submit Evaluation", use_container_width=True):
-
-        # Validation: Ensure both name fields are filled
+    if st.button("Transmit Evaluation", use_container_width=True):
         if not candidate_name.strip() or not evaluator_name.strip():
-            st.warning("Please enter both the Candidate Name and your Name.")
-
+            st.warning("Identity matrices cannot be empty.")
         else:
-            # CHANGED: Duplicate check removed. Evaluators may now submit
-            # multiple scores for the same candidate (e.g., different rounds).
             success = insert_score(
                 candidate_name.strip(),
                 evaluator_name.strip(),
@@ -578,16 +327,8 @@ if page == "Score Entry":
             )
 
             if success:
-                st.markdown(
-                    f'<div class="success-banner">'
-                    f'Score submitted! {evaluator_name.strip()} -> '
-                    f'{candidate_name.strip()} '
-                    f'(Total: {total_preview}/30)'
-                    f'</div>',
-                    unsafe_allow_html=True
-                )
-                st.balloons()
-                # Clear form fields for the next submission
+                # Professional toast notification replaces balloons
+                st.toast("Evaluation successfully recorded into database.")
                 clear_form()
                 st.rerun()
 
@@ -595,65 +336,46 @@ if page == "Score Entry":
 # ============================================================================
 # SECTION 8: LIVE LEADERBOARD PAGE
 # ============================================================================
-# Queries the database, aggregates scores with Pandas, and displays
-# a ranked leaderboard.
-# ============================================================================
-
 elif page == "Live Leaderboard":
+    st.markdown('<p class="main-header">Leaderboard Analytics</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Aggregated candidate performance rankings.</p>', unsafe_allow_html=True)
 
-    st.markdown('<p class="main-header">Live Leaderboard</p>', unsafe_allow_html=True)
-    st.markdown(
-        '<p class="sub-header">'
-        'Real-time candidate rankings based on all submitted evaluations.'
-        '</p>',
-        unsafe_allow_html=True
-    )
-
-    # Fetch aggregated leaderboard data from the database
     leaderboard, raw_df = get_leaderboard()
 
     if leaderboard.empty:
-        # No data yet — show a friendly empty state
-        st.info("No evaluations have been submitted yet. Go to **Score Entry** to add scores.")
-
+        st.info("System awaiting initial data inputs.")
     else:
         # ---- Summary Metrics ----
-        # Display key statistics at the top of the leaderboard
         m1, m2, m3, m4 = st.columns(4)
 
         with m1:
             st.markdown(
                 f'<div class="metric-card">'
                 f'<h3>{len(leaderboard)}</h3>'
-                f'<p>Candidates Scored</p>'
+                f'<p>Candidates Analyzed</p>'
                 f'</div>',
                 unsafe_allow_html=True
             )
-
         with m2:
             st.markdown(
                 f'<div class="metric-card">'
                 f'<h3>{int(raw_df["total_score"].sum())}</h3>'
-                f'<p>Total Points Awarded</p>'
+                f'<p>Points Distributed</p>'
                 f'</div>',
                 unsafe_allow_html=True
             )
-
         with m3:
             st.markdown(
                 f'<div class="metric-card">'
                 f'<h3>{len(raw_df)}</h3>'
-                f'<p>Total Evaluations</p>'
+                f'<p>Data Points</p>'
                 f'</div>',
                 unsafe_allow_html=True
             )
-
         with m4:
-            # Count unique evaluator names
-            unique_evaluators = raw_df['evaluator_name'].nunique()
             st.markdown(
                 f'<div class="metric-card">'
-                f'<h3>{unique_evaluators}</h3>'
+                f'<h3>{raw_df["evaluator_name"].nunique()}</h3>'
                 f'<p>Active Evaluators</p>'
                 f'</div>',
                 unsafe_allow_html=True
@@ -661,38 +383,41 @@ elif page == "Live Leaderboard":
 
         st.markdown("---")
 
-        # ---- Podium: Top 3 Candidates ----
-        if len(leaderboard) >= 1:
-            st.markdown("### Top Candidates")
-            podium_cols = st.columns(min(3, len(leaderboard)))
+        # ---- Advanced Plotly Radar Chart ----
+        st.markdown("### Top Candidates: Skill Variance Analysis")
+        
+        categories = ['Technical', 'Communication', 'Fit']
+        fig = go.Figure()
 
-            medals = ["#1", "#2", "#3"]
-            colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
+        # Add trace for top 3 candidates
+        for i in range(min(3, len(leaderboard))):
+            row = leaderboard.iloc[i]
+            fig.add_trace(go.Scatterpolar(
+                r=[row['avg_technical'], row['avg_communication'], row['avg_fit']],
+                theta=categories,
+                fill='toself',
+                name=f"#{i+1} {row['candidate_name']}"
+            ))
 
-            for i, col in enumerate(podium_cols):
-                if i < len(leaderboard):
-                    row = leaderboard.iloc[i]
-                    with col:
-                        st.markdown(
-                            f"<div style='text-align:center; padding:1rem; "
-                            f"border:2px solid {colors[i]}; border-radius:12px; "
-                            f"background: rgba(255,255,255,0.05);'>"
-                            f"<span style='font-size:2.5rem;'>{medals[i]}</span><br>"
-                            f"<strong style='font-size:1.2rem;'>{row['candidate_name']}</strong><br>"
-                            f"<span style='font-size:1.8rem; font-weight:700; color:{colors[i]};'>"
-                            f"{int(row['total_combined_score'])}</span><br>"
-                            f"<small>from {int(row['num_evaluations'])} evaluation(s) · "
-                            f"avg {row['avg_score']}/30</small>"
-                            f"</div>",
-                            unsafe_allow_html=True
-                        )
+        fig.update_layout(
+            polar=dict(
+                radialaxis=dict(visible=True, range=[0, 10], gridcolor='#333333'),
+                bgcolor='rgba(0,0,0,0)',
+                angularaxis=dict(gridcolor='#333333')
+            ),
+            showlegend=True,
+            margin=dict(l=40, r=40, t=20, b=20),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#e0e0e0")
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
         st.markdown("---")
 
         # ---- Full Leaderboard Table ----
-        st.markdown("### Full Rankings")
+        st.markdown("### Ranking Index")
 
-        # Rename columns for display-friendly headers
         display_df = leaderboard.rename(columns={
             'candidate_name':       'Candidate',
             'total_combined_score': 'Total Score',
@@ -703,8 +428,6 @@ elif page == "Live Leaderboard":
             'avg_fit':              'Avg Fit',
         })
 
-        # Display the DataFrame as an interactive, sortable table
-        # use_container_width=True makes it fill the page width
         st.dataframe(
             display_df,
             use_container_width=True,
@@ -714,41 +437,26 @@ elif page == "Live Leaderboard":
                 "Candidate":         st.column_config.TextColumn("Candidate", width="medium"),
                 "Total Score":       st.column_config.NumberColumn("Total", width="small"),
                 "Avg Score":         st.column_config.NumberColumn("Avg", width="small"),
-                "Evaluations":      st.column_config.NumberColumn("Evals", width="small"),
+                "Evaluations":       st.column_config.NumberColumn("Evals", width="small"),
                 "Avg Technical":     st.column_config.ProgressColumn("Technical", min_value=0, max_value=10, format="%.1f"),
                 "Avg Communication": st.column_config.ProgressColumn("Communication", min_value=0, max_value=10, format="%.1f"),
                 "Avg Fit":           st.column_config.ProgressColumn("Fit", min_value=0, max_value=10, format="%.1f"),
             }
         )
 
-        # ---- Bar Chart: Total Scores ----
-        st.markdown("### Score Distribution")
-        chart_data = leaderboard.set_index('candidate_name')['total_combined_score']
-        st.bar_chart(chart_data, color="#667eea")
-
 
 # ============================================================================
 # SECTION 9: RAW DATA PAGE
 # ============================================================================
-# Shows every individual score entry — useful for auditing and debugging.
-# ============================================================================
-
 elif page == "Raw Data":
-
-    st.markdown('<p class="main-header">Raw Evaluation Data</p>', unsafe_allow_html=True)
-    st.markdown(
-        '<p class="sub-header">'
-        'Complete audit trail of all individual score submissions.'
-        '</p>',
-        unsafe_allow_html=True
-    )
+    st.markdown('<p class="main-header">System Audit Log</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Immutable record of all evaluations and deletions.</p>', unsafe_allow_html=True)
 
     _, raw_df = get_leaderboard()
 
     if raw_df.empty:
-        st.info("No evaluations recorded yet.")
+        st.info("System database is empty.")
     else:
-        # Show the raw data with clean column names (keep 'id' for delete)
         display_raw = raw_df.rename(columns={
             'candidate_name':  'Candidate',
             'evaluator_name':  'Evaluator',
@@ -756,7 +464,7 @@ elif page == "Raw Data":
             'communication':   'Communication',
             'overall_fit':     'Overall Fit',
             'total_score':     'Total',
-            'submitted_at':    'Submitted At',
+            'submitted_at':    'Timestamp',
         })
 
         st.dataframe(
@@ -765,33 +473,29 @@ elif page == "Raw Data":
             hide_index=True
         )
 
-        # ---- Delete Individual Records ----
-        # Renders a delete button per row for data correction
         st.markdown("---")
-        st.markdown("#### Delete a Record")
-        st.caption("Select a record to permanently remove. This cannot be undone.")
+        st.markdown("#### Data Pruning")
+        st.caption("WARNING: Deletion removes the evaluation from all aggregations permanently.")
 
         for idx, row in raw_df.iterrows():
             col_info, col_btn = st.columns([5, 1])
             with col_info:
                 st.text(
-                    f"{row['candidate_name']} by {row['evaluator_name']} "
-                    f"— Total: {row['total_score']} ({row['submitted_at']})"
+                    f"{row['candidate_name']} [Authored by: {row['evaluator_name']}] "
+                    f"| Total: {row['total_score']} | {row['submitted_at']}"
                 )
             with col_btn:
-                if st.button("Delete", key=f"del_{row['id']}", type="secondary"):
+                if st.button("Delete Record", key=f"del_{row['id']}", type="secondary"):
                     if delete_score(int(row['id'])):
-                        st.toast("Record deleted successfully.")
-                        st.rerun()  # Refresh metrics, podium, leaderboard
+                        st.toast(f"Record {row['id']} securely deleted.")
+                        st.rerun()
 
         st.markdown("---")
-
-        # ---- Download as CSV ----
         csv_data = display_raw.drop(columns=['id']).to_csv(index=False)
         st.download_button(
-            label="Download as CSV",
+            label="Export Audit Log (.CSV)",
             data=csv_data,
-            file_name=f"evaluations_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            file_name=f"evaluation_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
             mime="text/csv",
             use_container_width=True
         )
