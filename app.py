@@ -288,9 +288,9 @@ st.markdown("""
         margin: 0.8rem 0;
     }
 
-    /* ---- Sidebar: Light & Clean ---- */
+    /* ---- Sidebar: Streamlit Default ---- */
     [data-testid="stSidebar"] {
-        background: transparent;
+        background-color: var(--secondary-background-color) !important;
         border-right: 1px solid rgba(128, 128, 128, 0.2);
     }
 
@@ -360,7 +360,7 @@ st.markdown("""
     /* ---- Mobile Responsiveness ---- */
     @media (max-width: 768px) {
         footer {visibility: hidden !important;}
-        .block-container {padding-top: 1rem !important;}
+        .block-container {padding-top: 4rem !important;}
         .score-preview .total-number { font-size: 2.8rem; }
         .score-breakdown { flex-wrap: wrap; gap: 0.5rem; }
     }
@@ -629,7 +629,6 @@ if page == "Score Entry":
         st.session_state.fit_slider = 5
         del st.session_state["form_submitted"]
         st.success("🎉 Evaluation submitted successfully!")
-        st.balloons()  # Show celebration animation!
 
     st.markdown('<p class="main-header">Score Entry</p>', unsafe_allow_html=True)
     st.markdown(
