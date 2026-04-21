@@ -15,6 +15,7 @@ import sqlite3
 import pandas as pd
 from datetime import datetime
 import plotly.graph_objects as go
+import plotly.express as px
 
 
 # ============================================================================
@@ -170,9 +171,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ============================================================================
+# SECTION 5.5: SECURITY GATING (REMOVED)
+# ============================================================================
+# Security gating removed per user request for free access.
+
 init_database()
 
-# ---------- CLEAN LIGHT-MODE DESIGN SYSTEM ----------
+# ---------- PRO-MAX RESPONSIVE DESIGN SYSTEM ----------
 # White/light-gray background throughout. A single functional blue (#2563EB)
 # is used ONLY for buttons and interactive highlights — never for text or UI bg.
 st.markdown("""
@@ -186,15 +192,14 @@ st.markdown("""
 
     /* ---- Main Typography ---- */
     .main-header {
-        font-size: 3.2rem;
+        font-size: 2.2rem;
         font-weight: 800;
-        color: inherit;
+        color: #3b82f6; /* Changed from transparent gradient to solid blue for visibility in all themes */
         margin-bottom: 0.2rem;
     }
     .sub-header {
-        font-size: 1.4rem;
-        color: inherit;
-        opacity: 0.8;
+        font-size: 1.1rem;
+        color: #9ca3af;
         margin-bottom: 1.5rem;
     }
 
@@ -334,13 +339,9 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 
-    /* ---- Page fade-in ---- */
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(8px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
+    /* ---- Page fade-in disabled to prevent mobile lag ---- */
     .block-container {
-        animation: fadeIn 0.3s ease-out;
+        /* animation removed for better performance */
     }
 
     /* ---- Slider: Blue accent ---- */
@@ -459,9 +460,8 @@ st.markdown("""
 # ============================================================================
 with st.sidebar:
     page = st.radio(
-        "Select a view:",
-        ["Score Entry", "Live Leaderboard", "Raw Data"],
-        label_visibility="collapsed"
+        "Navigation",
+        ["Score Entry", "Live Leaderboard", "Raw Data"]
     )
 
 
@@ -632,60 +632,54 @@ if page == "Score Entry":
         <style>
         .custom-popup {{
             position: fixed;
-            bottom: -120px;
+            bottom: -150px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(17, 24, 39, 0.95);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-left: 4px solid #22c55e;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-            padding: 16px 20px;
-            border-radius: 12px;
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 1px solid #3b82f6;
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+            padding: 16px 24px;
+            border-radius: 16px;
             z-index: 999999;
             width: 90%;
-            max-width: 400px;
+            max-width: 350px;
             display: flex;
             align-items: center;
             gap: 16px;
-            animation: popupAnim 5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation: popupAnim 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
             font-family: 'Inter', sans-serif;
         }}
         @keyframes popupAnim {{
-            0%   {{ bottom: -120px; opacity: 0; }}
-            10%  {{ bottom: 30px; opacity: 1; }}
-            90%  {{ bottom: 30px; opacity: 1; }}
-            100% {{ bottom: -120px; opacity: 0; }}
+            0%   {{ bottom: -150px; opacity: 0; }}
+            15%  {{ bottom: 40px; opacity: 1; }}
+            85%  {{ bottom: 40px; opacity: 1; }}
+            100% {{ bottom: -150px; opacity: 0; }}
         }}
         .custom-popup-icon {{
-            font-size: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            font-size: 32px;
         }}
         .custom-popup-content {{
             display: flex;
             flex-direction: column;
         }}
         .custom-popup-title {{
-            font-weight: 600;
-            color: #f9fafb;
+            font-weight: 700;
+            color: #ffffff;
             margin: 0;
-            font-size: 15px;
-            line-height: 1.4;
+            font-size: 16px;
+            line-height: 1.3;
         }}
         .custom-popup-subtitle {{
-            color: #9ca3af;
-            margin: 2px 0 0 0;
+            color: #94a3b8;
+            margin: 4px 0 0 0;
             font-size: 13px;
         }}
         </style>
         <div class="custom-popup">
-            <div class="custom-popup-icon">✅</div>
+            <div class="custom-popup-icon">🎉</div>
             <div class="custom-popup-content">
-                <p class="custom-popup-title">Thank you for submitting {cand_name_display}!</p>
-                <p class="custom-popup-subtitle">Evaluated by {eval_name_display}</p>
+                <p class="custom-popup-title">Thank you, {eval_name_display}!</p>
+                <p class="custom-popup-subtitle">Successfully submitted {cand_name_display}</p>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -934,9 +928,34 @@ elif page == "Live Leaderboard":
                     xanchor="center", x=0.5, font=dict(size=11)
                 ),
                 margin=dict(l=50, r=50, t=30, b=60),
-                font=dict(family="Inter, sans-serif")
+                font=dict(family="Inter, sans-serif"),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig, use_container_width=True)
+            
+            # --- Additional Pro Max Chart: Score Distribution ---
+            st.markdown("##### Performance Breakdown")
+            bar_fig = px.bar(
+                display_df.head(5).sort_values("Total Score", ascending=True), 
+                x='Total Score', 
+                y='Candidate', 
+                orientation='h',
+                color='Avg Score',
+                color_continuous_scale=['#ef4444', '#f59e0b', '#22c55e'],
+                template="plotly_white",
+                height=250
+            )
+            bar_fig.update_layout(
+                margin=dict(l=0, r=0, t=0, b=0),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(family="Inter, sans-serif"),
+                coloraxis_showscale=False
+            )
+            bar_fig.update_xaxes(title="Total Points", showgrid=True, gridcolor="rgba(128,128,128,0.2)")
+            bar_fig.update_yaxes(title="")
+            st.plotly_chart(bar_fig, use_container_width=True)
 
 
 # ============================================================================
