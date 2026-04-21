@@ -287,38 +287,12 @@ def get_leaderboard():
 
 
 # ============================================================================
-# SECTION 4: CHECK FOR DUPLICATE SUBMISSIONS
+# SECTION 4: REMOVED — DUPLICATE CHECK NO LONGER REQUIRED
 # ============================================================================
-# Prevents the same evaluator from scoring the same candidate twice.
+# Business logic change: Evaluators may now score the same candidate multiple
+# times (e.g., for different rounds). The check_duplicate function has been
+# intentionally removed.
 # ============================================================================
-
-def check_duplicate(candidate_name, evaluator_name):
-    """
-    Checks if this evaluator has already scored this candidate.
-    CRITICAL FIX: .strip() is applied to BOTH inputs before the SQL query
-    to prevent false negatives caused by leading/trailing whitespace.
-
-    Returns:
-        bool: True if a duplicate exists, False otherwise
-    """
-    conn = sqlite3.connect('evaluations.db')
-    cursor = conn.cursor()
-
-    # FIXED: Strip whitespace from inputs before querying
-    clean_candidate = candidate_name.strip()
-    clean_evaluator = evaluator_name.strip()
-
-    # Count how many rows match this exact evaluator-candidate pair
-    cursor.execute('''
-        SELECT COUNT(*) FROM scores
-        WHERE candidate_name = ? AND evaluator_name = ?
-    ''', (clean_candidate, clean_evaluator))
-
-    count = cursor.fetchone()[0]
-    conn.close()
-
-    # If count > 0, this evaluator has already scored this candidate
-    return count > 0
 
 
 def delete_score(score_id):
@@ -387,6 +361,7 @@ st.markdown("""
     }
 
     /* ---- Metric cards ---- */
+    /* ---- Metric cards with hover animation ---- */
     .metric-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 1.5rem;
@@ -395,6 +370,12 @@ st.markdown("""
         text-align: center;
         margin-bottom: 1rem;
         box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        transition: all 0.3s ease;
+        cursor: default;
+    }
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
     }
     .metric-card h3 {
         margin: 0;
@@ -425,7 +406,6 @@ st.markdown("""
     .rank-bronze { color: #CD7F32; font-weight: 800; font-size: 1.3rem; }
 
     /* ---- Sidebar polish ---- */
-    /* FIXED: Replaced gradient with a clean, single-tone neutral color */
     [data-testid="stSidebar"] {
         background: #262730;
     }
@@ -437,8 +417,26 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 
+    /* ---- Page fade-in animation ---- */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .block-container {
+        animation: fadeIn 0.4s ease-out;
+    }
+
+    /* ---- Modern slider styling ---- */
+    .stSlider > div > div > div > div {
+        background: linear-gradient(90deg, #667eea, #764ba2) !important;
+    }
+    .stSlider [role="slider"] {
+        background-color: #667eea !important;
+        border: 2px solid #fff !important;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5) !important;
+    }
+
     /* ---- Mobile Responsiveness ---- */
-    /* Hide Streamlit chrome on mobile for a native app feel */
     @media (max-width: 768px) {
         #MainMenu {visibility: hidden !important;}
         footer {visibility: hidden !important;}
@@ -465,10 +463,32 @@ with st.sidebar:
 
 
 # ============================================================================
-# SECTION 7: SCORE ENTRY PAGE
+# SECTION 7: SCORE ENTRY PAGE (REFACTORED — NO st.form)
 # ============================================================================
-# This is the main form where evaluators submit their scores.
+# The st.form wrapper has been REMOVED so that sliders trigger immediate
+# app reruns. This allows the "Total Score" preview to update in real-time
+# as the user drags each slider — no submit required to see the total.
+#
+# Trade-off: Each slider change causes a rerun, but Streamlit handles this
+# efficiently (~50ms per rerun on SQLite). The UX gain outweighs the cost.
+#
+# Manual state clearing replaces clear_on_submit=True. A callback function
+# resets all widget keys in st.session_state after a successful submission.
 # ============================================================================
+
+
+def clear_form():
+    """
+    Callback function attached to the Submit button.
+    Resets all form widget values via their session_state keys.
+    This replaces st.form's built-in clear_on_submit=True behavior.
+    """
+    st.session_state.cand_name = ""
+    st.session_state.eval_name = ""
+    st.session_state.tech_slider = 5
+    st.session_state.comm_slider = 5
+    st.session_state.fit_slider = 5
+
 
 if page == "Score Entry":
 
@@ -481,84 +501,74 @@ if page == "Score Entry":
         unsafe_allow_html=True
     )
 
-    # ---- Score Entry Form ----
-    # st.form() groups inputs together so the app only reruns ONCE
-    # when the "Submit" button is clicked (not on every slider change).
-    with st.form("score_form", clear_on_submit=True):
+    # ---- Identification Inputs (outside form — immediate rerun on change) ----
+    st.markdown("#### Identification")
+    col1, col2 = st.columns(2)
 
-        st.markdown("#### Identification")
-        col1, col2 = st.columns(2)
-
-        with col1:
-            # Text input for the candidate's name
-            candidate_name = st.text_input(
-                "Candidate Name",
-                placeholder="e.g., Priya Sharma"
-            )
-
-        with col2:
-            # Text input for the evaluator's name
-            evaluator_name = st.text_input(
-                "Your Name (Evaluator)",
-                placeholder="e.g., Rahul Verma"
-            )
-
-        st.markdown("---")
-        st.markdown("#### Scoring Criteria")
-
-        # Three columns for the three scoring sliders
-        col_t, col_c, col_f = st.columns(3)
-
-        with col_t:
-            # Slider returns an integer between 1 and 10
-            technical_score = st.slider(
-                "Technical Skills",
-                min_value=1, max_value=10, value=5,
-                help="Rate the candidate's technical knowledge and problem-solving ability."
-            )
-
-        with col_c:
-            communication_score = st.slider(
-                "Communication",
-                min_value=1, max_value=10, value=5,
-                help="Rate the candidate's clarity, articulation, and presentation skills."
-            )
-
-        with col_f:
-            overall_fit_score = st.slider(
-                "Overall Fit",
-                min_value=1, max_value=10, value=5,
-                help="Rate how well the candidate aligns with the club's culture and goals."
-            )
-
-        # Show a live preview of the total score before submission
-        total_preview = technical_score + communication_score + overall_fit_score
-        st.markdown(f"**Preview — Total Score: `{total_preview}` / 30**")
-
-        # The submit button — clicking this triggers the form submission
-        submitted = st.form_submit_button(
-            "Submit Evaluation",
-            use_container_width=True
+    with col1:
+        candidate_name = st.text_input(
+            "Candidate Name",
+            placeholder="e.g., Priya Sharma",
+            key="cand_name"  # Keyed for manual state clearing
         )
 
-    # ---- Form Submission Handler ----
-    # This block runs ONLY when the submit button is clicked.
-    if submitted:
+    with col2:
+        evaluator_name = st.text_input(
+            "Your Name (Evaluator)",
+            placeholder="e.g., Rahul Verma",
+            key="eval_name"  # Keyed for manual state clearing
+        )
+
+    st.markdown("---")
+    st.markdown("#### Scoring Criteria")
+
+    # ---- Sliders (outside form — update total preview in real-time) ----
+    col_t, col_c, col_f = st.columns(3)
+
+    with col_t:
+        technical_score = st.slider(
+            "Technical Skills",
+            min_value=1, max_value=10, value=5,
+            key="tech_slider",
+            help="Rate the candidate's technical knowledge and problem-solving ability."
+        )
+
+    with col_c:
+        communication_score = st.slider(
+            "Communication",
+            min_value=1, max_value=10, value=5,
+            key="comm_slider",
+            help="Rate the candidate's clarity, articulation, and presentation skills."
+        )
+
+    with col_f:
+        overall_fit_score = st.slider(
+            "Overall Fit",
+            min_value=1, max_value=10, value=5,
+            key="fit_slider",
+            help="Rate how well the candidate aligns with the club's culture and goals."
+        )
+
+    # ---- REAL-TIME Total Score Preview ----
+    # This now updates INSTANTLY on every slider drag because we are
+    # outside st.form. Each slider change triggers a Streamlit rerun,
+    # recalculating this value immediately.
+    total_preview = technical_score + communication_score + overall_fit_score
+    st.markdown(f"**Preview — Total Score: `{total_preview}` / 30**")
+
+    # ---- Submission Logic ----
+    # The on_click callback fires AFTER the current rerun completes,
+    # so we capture the current widget values first, insert to DB,
+    # then the callback clears the form for the next entry.
+    if st.button("Submit Evaluation", use_container_width=True):
+
         # Validation: Ensure both name fields are filled
         if not candidate_name.strip() or not evaluator_name.strip():
             st.warning("Please enter both the Candidate Name and your Name.")
 
-        # Validation: Check for duplicate submissions
-        elif check_duplicate(candidate_name.strip(), evaluator_name.strip()):
-            st.error(
-                f"**Duplicate detected!** "
-                f"'{evaluator_name.strip()}' has already evaluated "
-                f"'{candidate_name.strip()}'. Each evaluator can only "
-                f"score a candidate once."
-            )
-
         else:
-            # All validations passed — insert into database
+            # CHANGED: Duplicate check removed. Evaluators may now submit
+            # multiple scores for the same candidate (e.g., different rounds).
             success = insert_score(
                 candidate_name.strip(),
                 evaluator_name.strip(),
@@ -576,8 +586,10 @@ if page == "Score Entry":
                     f'</div>',
                     unsafe_allow_html=True
                 )
-                # Trigger a rerun so the leaderboard updates if viewed next
                 st.balloons()
+                # Clear form fields for the next submission
+                clear_form()
+                st.rerun()
 
 
 # ============================================================================
