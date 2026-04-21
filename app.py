@@ -288,11 +288,7 @@ st.markdown("""
         margin: 0.8rem 0;
     }
 
-    /* ---- Sidebar: Streamlit Default ---- */
-    [data-testid="stSidebar"] {
-        background-color: var(--secondary-background-color) !important;
-        border-right: 1px solid rgba(128, 128, 128, 0.2);
-    }
+
 
     /* ---- Primary Button: Solid Blue ---- */
     [data-testid="stAppViewContainer"] .stButton > button[kind="primary"],
@@ -622,13 +618,14 @@ if page == "Score Entry":
 
     # ---- Pre-widget state reset (runs BEFORE any widget is created) ----
     if st.session_state.get("form_submitted", False):
-        st.session_state.cand_name = ""
-        st.session_state.eval_name = ""
-        st.session_state.tech_slider = 5
-        st.session_state.comm_slider = 5
-        st.session_state.fit_slider = 5
+        if "reset_counter" not in st.session_state:
+            st.session_state.reset_counter = 0
+        st.session_state.reset_counter += 1
         del st.session_state["form_submitted"]
         st.success("🎉 Evaluation submitted successfully!")
+
+    if "reset_counter" not in st.session_state:
+        st.session_state.reset_counter = 0
 
     st.markdown('<p class="main-header">Score Entry</p>', unsafe_allow_html=True)
     st.markdown(
@@ -646,12 +643,12 @@ if page == "Score Entry":
         candidate_name = st.text_input(
             "Candidate Name",
             placeholder="e.g., Priya Sharma",
-            key="cand_name"
+            key=f"cand_name_{st.session_state.reset_counter}"
         )
         evaluator_name = st.text_input(
             "Your Name (Evaluator)",
             placeholder="e.g., Rahul Verma",
-            key="eval_name"
+            key=f"eval_name_{st.session_state.reset_counter}"
         )
 
         st.markdown("---")
@@ -660,19 +657,19 @@ if page == "Score Entry":
         technical_score = st.slider(
             "Technical Skills",
             min_value=1, max_value=10, value=5,
-            key="tech_slider",
+            key=f"tech_slider_{st.session_state.reset_counter}",
             help="Rate the candidate's technical knowledge and problem-solving ability."
         )
         communication_score = st.slider(
             "Communication",
             min_value=1, max_value=10, value=5,
-            key="comm_slider",
+            key=f"comm_slider_{st.session_state.reset_counter}",
             help="Rate the candidate's clarity, articulation, and presentation skills."
         )
         overall_fit_score = st.slider(
             "Overall Fit",
             min_value=1, max_value=10, value=5,
-            key="fit_slider",
+            key=f"fit_slider_{st.session_state.reset_counter}",
             help="Rate how well the candidate aligns with the team's culture and goals."
         )
 
