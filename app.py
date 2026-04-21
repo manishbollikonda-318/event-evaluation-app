@@ -616,13 +616,79 @@ if not st.session_state.tutorial_done:
 
 if page == "Score Entry":
 
-    # ---- Pre-widget state reset (runs BEFORE any widget is created) ----
-    if st.session_state.get("form_submitted", False):
+    submitted_data = st.session_state.get("form_submitted", None)
+    if submitted_data:
         if "reset_counter" not in st.session_state:
             st.session_state.reset_counter = 0
         st.session_state.reset_counter += 1
+        
+        cand_name_display = submitted_data.get("cand", "Candidate")
+        eval_name_display = submitted_data.get("eval", "You")
+        
         del st.session_state["form_submitted"]
-        st.success("🎉 Evaluation submitted successfully!")
+        
+        # Render a beautiful custom animated popup
+        st.markdown(f"""
+        <style>
+        .custom-popup {{
+            position: fixed;
+            bottom: -120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-left: 4px solid #22c55e;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            padding: 16px 20px;
+            border-radius: 12px;
+            z-index: 999999;
+            width: 90%;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            animation: popupAnim 5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            font-family: 'Inter', sans-serif;
+        }}
+        @keyframes popupAnim {{
+            0%   {{ bottom: -120px; opacity: 0; }}
+            10%  {{ bottom: 30px; opacity: 1; }}
+            90%  {{ bottom: 30px; opacity: 1; }}
+            100% {{ bottom: -120px; opacity: 0; }}
+        }}
+        .custom-popup-icon {{
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+        .custom-popup-content {{
+            display: flex;
+            flex-direction: column;
+        }}
+        .custom-popup-title {{
+            font-weight: 600;
+            color: #f9fafb;
+            margin: 0;
+            font-size: 15px;
+            line-height: 1.4;
+        }}
+        .custom-popup-subtitle {{
+            color: #9ca3af;
+            margin: 2px 0 0 0;
+            font-size: 13px;
+        }}
+        </style>
+        <div class="custom-popup">
+            <div class="custom-popup-icon">✅</div>
+            <div class="custom-popup-content">
+                <p class="custom-popup-title">Thank you for submitting {cand_name_display}!</p>
+                <p class="custom-popup-subtitle">Evaluated by {eval_name_display}</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     if "reset_counter" not in st.session_state:
         st.session_state.reset_counter = 0
@@ -737,11 +803,13 @@ if page == "Score Entry":
             )
 
             if success:
-                st.toast("Score submitted successfully.")
-                # Flag-based reset: set flag, then rerun.
+                # Flag-based reset: set flag with data, then rerun.
                 # The flag is detected at the TOP of this page section
                 # on the next run, BEFORE widgets are instantiated.
-                st.session_state["form_submitted"] = True
+                st.session_state["form_submitted"] = {
+                    "cand": candidate_name.strip(),
+                    "eval": evaluator_name.strip()
+                }
                 st.rerun()
 
 
