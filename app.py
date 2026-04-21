@@ -20,6 +20,7 @@ import plotly.graph_objects as go
 # ============================================================================
 # SECTION 1: DATABASE INITIALIZATION
 # ============================================================================
+@st.cache_resource
 def init_database():
     """
     Creates the SQLite database and the 'scores' table.
@@ -177,21 +178,22 @@ st.markdown("""
 
     /* ---- Main Typography ---- */
     .main-header {
-        font-size: 1.9rem;
-        font-weight: 700;
-        color: #1a1a2e;
-        margin-bottom: 0.1rem;
+        font-size: 2.6rem;
+        font-weight: 800;
+        color: var(--text-color);
+        margin-bottom: 0.2rem;
     }
     .sub-header {
-        font-size: 0.95rem;
-        color: #6b7280;
+        font-size: 1.2rem;
+        color: var(--text-color);
+        opacity: 0.8;
         margin-bottom: 1.5rem;
     }
 
     /* ---- Metric Cards: Clean & Minimal ---- */
     .metric-card {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
+        background: var(--background-color);
+        border: 1px solid rgba(128, 128, 128, 0.2);
         padding: 1.2rem 1.5rem;
         border-radius: 10px;
         text-align: center;
@@ -205,37 +207,39 @@ st.markdown("""
     }
     .metric-card h3 {
         margin: 0;
-        font-size: 2rem;
+        font-size: 2.4rem;
         font-weight: 700;
         color: #2563EB;
     }
     .metric-card p {
         margin: 0.25rem 0 0 0;
-        font-size: 0.8rem;
+        font-size: 0.9rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: #9ca3af;
+        color: var(--text-color);
+        opacity: 0.7;
         font-weight: 500;
     }
 
     /* ---- Score Preview Card ---- */
     .score-preview {
-        background: #f0f4ff;
-        border: 1px solid #dbeafe;
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(128, 128, 128, 0.2);
         border-radius: 10px;
         padding: 1.5rem;
         text-align: center;
         margin-bottom: 1rem;
     }
     .score-preview .total-number {
-        font-size: 3rem;
+        font-size: 3.5rem;
         font-weight: 700;
         color: #2563EB;
         line-height: 1;
     }
     .score-preview .total-label {
-        font-size: 0.85rem;
-        color: #6b7280;
+        font-size: 0.95rem;
+        color: var(--text-color);
+        opacity: 0.8;
         text-transform: uppercase;
         letter-spacing: 1px;
         margin-top: 0.3rem;
@@ -245,19 +249,20 @@ st.markdown("""
         justify-content: space-around;
         margin-top: 1rem;
         padding-top: 1rem;
-        border-top: 1px solid #dbeafe;
+        border-top: 1px solid rgba(128, 128, 128, 0.2);
     }
     .score-breakdown .item {
         text-align: center;
     }
     .score-breakdown .item .value {
-        font-size: 1.4rem;
+        font-size: 1.6rem;
         font-weight: 600;
-        color: #1e40af;
+        color: #2563EB;
     }
     .score-breakdown .item .label {
-        font-size: 0.7rem;
-        color: #9ca3af;
+        font-size: 0.8rem;
+        color: var(--text-color);
+        opacity: 0.7;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -271,17 +276,17 @@ st.markdown("""
         border-radius: 8px;
         color: #166534;
         font-weight: 500;
-        font-size: 0.9rem;
+        font-size: 1rem;
         margin: 0.8rem 0;
     }
 
     /* ---- Sidebar: Light & Clean ---- */
     [data-testid="stSidebar"] {
-        background: #f8fafc;
-        border-right: 1px solid #e5e7eb;
+        background: var(--secondary-background-color);
+        border-right: 1px solid rgba(128, 128, 128, 0.2);
     }
     [data-testid="stSidebar"] * {
-        color: #374151 !important;
+        color: var(--text-color) !important;
     }
 
     /* ---- Primary Button: Solid Blue ---- */
@@ -302,9 +307,9 @@ st.markdown("""
     }
     /* Secondary buttons (delete) — red outline */
     [data-testid="stAppViewContainer"] .stButton > button[kind="secondary"] {
-        background-color: #ffffff !important;
+        background-color: transparent !important;
         color: #dc2626 !important;
-        border: 1px solid #fecaca !important;
+        border: 1px solid #dc2626 !important;
         border-radius: 8px !important;
         font-weight: 500 !important;
     }
@@ -351,7 +356,7 @@ st.markdown("""
     @media (max-width: 768px) {
         footer {visibility: hidden !important;}
         .block-container {padding-top: 1rem !important;}
-        .score-preview .total-number { font-size: 2.2rem; }
+        .score-preview .total-number { font-size: 2.8rem; }
         .score-breakdown { flex-wrap: wrap; gap: 0.5rem; }
     }
 
@@ -393,31 +398,32 @@ st.markdown("""
         min-height: 60vh;
     }
     .tutorial-card {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
+        background: var(--background-color);
+        border: 1px solid rgba(128, 128, 128, 0.2);
         border-radius: 16px;
         padding: 2.5rem 2rem 2rem;
         max-width: 420px;
         width: 100%;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
         text-align: center;
         font-family: 'Inter', sans-serif;
     }
     .tutorial-card .step-icon {
-        font-size: 3rem;
+        font-size: 3.5rem;
         margin-bottom: 1rem;
         display: block;
     }
     .tutorial-card h3 {
         margin: 0 0 0.6rem 0;
-        font-size: 1.25rem;
+        font-size: 1.4rem;
         font-weight: 700;
-        color: #1a1a2e;
+        color: var(--text-color);
     }
     .tutorial-card p {
         margin: 0 0 1.5rem 0;
-        font-size: 0.92rem;
-        color: #6b7280;
+        font-size: 1.05rem;
+        color: var(--text-color);
+        opacity: 0.8;
         line-height: 1.6;
     }
     .tutorial-dots {
@@ -617,6 +623,7 @@ if page == "Score Entry":
         st.session_state.comm_slider = 5
         st.session_state.fit_slider = 5
         del st.session_state["form_submitted"]
+        st.balloons()  # Show celebration animation!
 
     st.markdown('<p class="main-header">Score Entry</p>', unsafe_allow_html=True)
     st.markdown(
