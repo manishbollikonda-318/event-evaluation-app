@@ -374,18 +374,26 @@ with st.sidebar:
 # ============================================================================
 # Layout: LEFT column = inputs & controls, RIGHT column = live score feedback.
 # All sliders are outside st.form so total updates in real-time on drag.
+#
+# IMPORTANT — State Reset Pattern:
+#   Streamlit raises StreamlitAPIException if you modify session_state for a
+#   widget key AFTER that widget has already been instantiated in the current
+#   script run.  To work around this, we use a flag ('form_submitted'):
+#     1. On submit  -> set flag to True, call st.rerun()
+#     2. On the NEXT rerun (before widgets render) -> detect the flag,
+#        clear the keys, delete the flag.  Now the widgets see fresh defaults.
 # ============================================================================
 
-def clear_form():
-    """Callback to reset all widget keys after successful submission."""
-    st.session_state.cand_name = ""
-    st.session_state.eval_name = ""
-    st.session_state.tech_slider = 5
-    st.session_state.comm_slider = 5
-    st.session_state.fit_slider = 5
-
-
 if page == "Score Entry":
+
+    # ---- Pre-widget state reset (runs BEFORE any widget is created) ----
+    if st.session_state.get("form_submitted", False):
+        st.session_state.cand_name = ""
+        st.session_state.eval_name = ""
+        st.session_state.tech_slider = 5
+        st.session_state.comm_slider = 5
+        st.session_state.fit_slider = 5
+        del st.session_state["form_submitted"]
 
     st.markdown('<p class="main-header">Score Entry</p>', unsafe_allow_html=True)
     st.markdown(
@@ -498,7 +506,10 @@ if page == "Score Entry":
 
             if success:
                 st.toast("Score submitted successfully.")
-                clear_form()
+                # Flag-based reset: set flag, then rerun.
+                # The flag is detected at the TOP of this page section
+                # on the next run, BEFORE widgets are instantiated.
+                st.session_state["form_submitted"] = True
                 st.rerun()
 
 
