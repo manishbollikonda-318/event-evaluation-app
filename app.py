@@ -78,6 +78,8 @@ def insert_score(candidate_name, evaluator_name, technical, communication, fit):
               fit, total_score, timestamp))
 
         conn.commit()
+        if 'get_raw_data' in globals():
+            get_raw_data.clear()
         return True
 
     except sqlite3.OperationalError as e:
@@ -94,17 +96,21 @@ def insert_score(candidate_name, evaluator_name, technical, communication, fit):
 # ============================================================================
 # SECTION 3: DATABASE READ + PANDAS AGGREGATION
 # ============================================================================
-def get_leaderboard():
-    """
-    Queries all scores and aggregates them into a ranked leaderboard.
-    """
+@st.cache_data(ttl=60)
+def get_raw_data():
     conn = sqlite3.connect('evaluations.db', timeout=15)
-
     raw_df = pd.read_sql_query(
         "SELECT * FROM scores ORDER BY submitted_at DESC",
         conn
     )
     conn.close()
+    return raw_df
+
+def get_leaderboard():
+    """
+    Queries all scores and aggregates them into a ranked leaderboard.
+    """
+    raw_df = get_raw_data()
 
     if raw_df.empty:
         return pd.DataFrame(), raw_df
@@ -143,6 +149,8 @@ def delete_score(score_id):
         cursor = conn.cursor()
         cursor.execute('DELETE FROM scores WHERE id = ?', (score_id,))
         conn.commit()
+        if 'get_raw_data' in globals():
+            get_raw_data.clear()
         return True
 
     except Exception as e:
@@ -178,22 +186,22 @@ st.markdown("""
 
     /* ---- Main Typography ---- */
     .main-header {
-        font-size: 2.6rem;
+        font-size: 3.2rem;
         font-weight: 800;
-        color: var(--text-color);
+        color: inherit;
         margin-bottom: 0.2rem;
     }
     .sub-header {
-        font-size: 1.2rem;
-        color: var(--text-color);
+        font-size: 1.4rem;
+        color: inherit;
         opacity: 0.8;
         margin-bottom: 1.5rem;
     }
 
     /* ---- Metric Cards: Clean & Minimal ---- */
     .metric-card {
-        background: var(--background-color);
-        border: 1px solid rgba(128, 128, 128, 0.2);
+        background: transparent;
+        border: 1px solid rgba(128, 128, 128, 0.4);
         padding: 1.2rem 1.5rem;
         border-radius: 10px;
         text-align: center;
@@ -213,18 +221,18 @@ st.markdown("""
     }
     .metric-card p {
         margin: 0.25rem 0 0 0;
-        font-size: 0.9rem;
+        font-size: 1rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: var(--text-color);
-        opacity: 0.7;
-        font-weight: 500;
+        color: inherit;
+        opacity: 0.8;
+        font-weight: 600;
     }
 
     /* ---- Score Preview Card ---- */
     .score-preview {
-        background: var(--secondary-background-color);
-        border: 1px solid rgba(128, 128, 128, 0.2);
+        background: transparent;
+        border: 1px solid rgba(128, 128, 128, 0.4);
         border-radius: 10px;
         padding: 1.5rem;
         text-align: center;
@@ -237,8 +245,8 @@ st.markdown("""
         line-height: 1;
     }
     .score-preview .total-label {
-        font-size: 0.95rem;
-        color: var(--text-color);
+        font-size: 1.1rem;
+        color: inherit;
         opacity: 0.8;
         text-transform: uppercase;
         letter-spacing: 1px;
@@ -260,9 +268,9 @@ st.markdown("""
         color: #2563EB;
     }
     .score-breakdown .item .label {
-        font-size: 0.8rem;
-        color: var(--text-color);
-        opacity: 0.7;
+        font-size: 0.9rem;
+        color: inherit;
+        opacity: 0.8;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -282,11 +290,8 @@ st.markdown("""
 
     /* ---- Sidebar: Light & Clean ---- */
     [data-testid="stSidebar"] {
-        background: var(--secondary-background-color);
+        background: transparent;
         border-right: 1px solid rgba(128, 128, 128, 0.2);
-    }
-    [data-testid="stSidebar"] * {
-        color: var(--text-color) !important;
     }
 
     /* ---- Primary Button: Solid Blue ---- */
@@ -398,8 +403,8 @@ st.markdown("""
         min-height: 60vh;
     }
     .tutorial-card {
-        background: var(--background-color);
-        border: 1px solid rgba(128, 128, 128, 0.2);
+        background: transparent;
+        border: 1px solid rgba(128, 128, 128, 0.4);
         border-radius: 16px;
         padding: 2.5rem 2rem 2rem;
         max-width: 420px;
@@ -415,14 +420,14 @@ st.markdown("""
     }
     .tutorial-card h3 {
         margin: 0 0 0.6rem 0;
-        font-size: 1.4rem;
+        font-size: 1.5rem;
         font-weight: 700;
-        color: var(--text-color);
+        color: inherit;
     }
     .tutorial-card p {
         margin: 0 0 1.5rem 0;
-        font-size: 1.05rem;
-        color: var(--text-color);
+        font-size: 1.1rem;
+        color: inherit;
         opacity: 0.8;
         line-height: 1.6;
     }
@@ -623,6 +628,7 @@ if page == "Score Entry":
         st.session_state.comm_slider = 5
         st.session_state.fit_slider = 5
         del st.session_state["form_submitted"]
+        st.success("🎉 Evaluation submitted successfully!")
         st.balloons()  # Show celebration animation!
 
     st.markdown('<p class="main-header">Score Entry</p>', unsafe_allow_html=True)
@@ -856,12 +862,7 @@ elif page == "Live Leaderboard":
 
             fig.update_layout(
                 polar=dict(
-                    radialaxis=dict(
-                        visible=True, range=[0, 10],
-                        gridcolor='#e5e7eb', linecolor='#d1d5db'
-                    ),
-                    bgcolor='#ffffff',
-                    angularaxis=dict(gridcolor='#e5e7eb', linecolor='#d1d5db')
+                    radialaxis=dict(visible=True, range=[0, 10])
                 ),
                 showlegend=True,
                 legend=dict(
@@ -869,9 +870,7 @@ elif page == "Live Leaderboard":
                     xanchor="center", x=0.5, font=dict(size=11)
                 ),
                 margin=dict(l=50, r=50, t=30, b=60),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="#ffffff",
-                font=dict(color="#374151", family="Inter, sans-serif")
+                font=dict(family="Inter, sans-serif")
             )
             st.plotly_chart(fig, use_container_width=True)
 
@@ -914,18 +913,17 @@ elif page == "Raw Data":
         st.markdown("##### Delete a Record")
         st.caption("This action is permanent and cannot be undone.")
 
-        for idx, row in raw_df.iterrows():
-            col_info, col_btn = st.columns([5, 1])
-            with col_info:
-                st.text(
-                    f"{row['candidate_name']} by {row['evaluator_name']} "
-                    f"| Total: {row['total_score']} | {row['submitted_at']}"
-                )
-            with col_btn:
-                if st.button("Delete", key=f"del_{row['id']}", type="secondary"):
-                    if delete_score(int(row['id'])):
-                        st.toast(f"Record #{row['id']} deleted.")
-                        st.rerun()
+        delete_id = st.selectbox(
+            "Select a Record ID to Delete",
+            options=["None"] + raw_df['id'].tolist(),
+            format_func=lambda x: "Select ID..." if x == "None" else f"ID {x} - {raw_df[raw_df['id'] == x]['candidate_name'].values[0]} by {raw_df[raw_df['id'] == x]['evaluator_name'].values[0]}"
+        )
+        
+        if delete_id != "None":
+            if st.button("Delete Record", type="secondary"):
+                if delete_score(int(delete_id)):
+                    st.toast(f"Record #{delete_id} deleted.")
+                    st.rerun()
 
         st.markdown("---")
         csv_data = display_raw.drop(columns=['id']).to_csv(index=False)
