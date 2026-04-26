@@ -535,7 +535,7 @@ if page == "Score Entry":
         # Render a beautiful custom animated popup
         st.markdown(f"""
         <style>
-        .custom-popup {
+        .custom-popup {{
             position: fixed;
             top: -150px;
             left: 50%;
@@ -555,23 +555,23 @@ if page == "Score Entry":
             gap: 20px;
             animation: popupBeast 3s cubic-bezier(0.23, 1, 0.32, 1) forwards;
             font-family: 'Outfit', sans-serif;
-        }
-        @keyframes popupBeast {
-            0%   { top: -150px; opacity: 0; transform: translateX(-50%) scale(0.9); }
-            15%  { top: 40px; opacity: 1; transform: translateX(-50%) scale(1); }
-            85%  { top: 40px; opacity: 1; transform: translateX(-50%) scale(1); }
-            100% { top: -150px; opacity: 0; transform: translateX(-50%) scale(0.9); }
-        }
-        .popup-icon {
+        }}
+        @keyframes popupBeast {{
+            0%   {{ top: -150px; opacity: 0; transform: translateX(-50%) scale(0.9); }}
+            15%  {{ top: 40px; opacity: 1; transform: translateX(-50%) scale(1); }}
+            85%  {{ top: 40px; opacity: 1; transform: translateX(-50%) scale(1); }}
+            100% {{ top: -150px; opacity: 0; transform: translateX(-50%) scale(0.9); }}
+        }}
+        .popup-icon {{
             background: linear-gradient(135deg, #22c55e, #10b981);
             width: 50px; height: 50px;
             border-radius: 15px;
             display: flex; align-items: center; justify-content: center;
             font-size: 24px;
             box-shadow: 0 10px 20px rgba(34, 197, 94, 0.3);
-        }
-        .popup-text h4 { margin: 0; color: white; font-size: 1.1rem; font-weight: 700; }
-        .popup-text p { margin: 4px 0 0 0; color: #94a3b8; font-size: 0.9rem; }
+        }}
+        .popup-text h4 {{ margin: 0; color: white; font-size: 1.1rem; font-weight: 700; }}
+        .popup-text p {{ margin: 4px 0 0 0; color: #94a3b8; font-size: 0.9rem; }}
         </style>
         <div class="custom-popup">
             <div class="popup-icon">✅</div>
