@@ -357,22 +357,30 @@ st.markdown("""
 
     /* ---- Sidebar: Solid & Clear ---- */
     [data-testid="stSidebar"] {
-        background-color: #f9fafb !important;
-        border-right: 1px solid #e5e7eb !important;
+        background-color: #ffffff !important;
+        border-right: 1px solid rgba(0,0,0,0.05) !important;
+        box-shadow: 4px 0 15px rgba(0,0,0,0.02) !important;
         min-width: 280px !important;
     }
-    [data-testid="stSidebar"] .stRadio > div {
-        padding: 10px 0;
+    [data-testid="stSidebarNav"] {
+        padding-top: 2rem !important;
     }
-    [data-testid="stSidebar"] .stRadio label {
-        font-size: 1.1rem !important;
-        font-weight: 500 !important;
-        padding: 8px 12px !important;
-        border-radius: 8px !important;
-        transition: background 0.2s;
+    
+    /* ---- Pulsating Live Dot ---- */
+    .live-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background-color: #22c55e;
+        border-radius: 50%;
+        margin-right: 8px;
+        box-shadow: 0 0 0 rgba(34, 197, 94, 0.4);
+        animation: pulseLive 1.5s infinite;
     }
-    [data-testid="stSidebar"] .stRadio label:hover {
-        background: #f3f4f6;
+    @keyframes pulseLive {
+        0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
     }
 
     /* ---- Mobile Responsiveness ---- */
@@ -839,7 +847,7 @@ if page == "Score Entry":
 
 elif page == "Live Leaderboard":
 
-    st.markdown('<p class="main-header">Live Leaderboard</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header"><span class="live-indicator"></span>Live Leaderboard</p>', unsafe_allow_html=True)
     st.markdown(
         '<p class="sub-header">'
         'Real-time candidate rankings based on all submitted evaluations.'
