@@ -192,15 +192,16 @@ st.markdown("""
 
     /* ---- Main Typography ---- */
     .main-header {
-        font-size: 2.2rem;
+        font-size: 2.8rem;
         font-weight: 800;
-        color: #3b82f6; /* Changed from transparent gradient to solid blue for visibility in all themes */
-        margin-bottom: 0.2rem;
+        color: #3b82f6; 
+        margin-bottom: 0.5rem;
+        line-height: 1.2;
     }
     .sub-header {
-        font-size: 1.1rem;
-        color: #9ca3af;
-        margin-bottom: 1.5rem;
+        font-size: 1.2rem;
+        color: #6b7280;
+        margin-bottom: 2rem;
     }
 
     /* ---- Metric Cards: Clean & Minimal ---- */
@@ -354,12 +355,34 @@ st.markdown("""
         box-shadow: 0 1px 4px rgba(37,99,235,0.4) !important;
     }
 
+    /* ---- Sidebar: Solid & Clear ---- */
+    [data-testid="stSidebar"] {
+        background-color: #f9fafb !important;
+        border-right: 1px solid #e5e7eb !important;
+        min-width: 280px !important;
+    }
+    [data-testid="stSidebar"] .stRadio > div {
+        padding: 10px 0;
+    }
+    [data-testid="stSidebar"] .stRadio label {
+        font-size: 1.1rem !important;
+        font-weight: 500 !important;
+        padding: 8px 12px !important;
+        border-radius: 8px !important;
+        transition: background 0.2s;
+    }
+    [data-testid="stSidebar"] .stRadio label:hover {
+        background: #f3f4f6;
+    }
+
     /* ---- Mobile Responsiveness ---- */
     @media (max-width: 768px) {
         footer {visibility: hidden !important;}
-        .block-container {padding-top: 4rem !important;}
+        .block-container {padding-top: 2rem !important; padding-left: 1rem !important; padding-right: 1rem !important;}
+        .main-header { font-size: 2.2rem; }
         .score-preview .total-number { font-size: 2.8rem; }
         .score-breakdown { flex-wrap: wrap; gap: 0.5rem; }
+        [data-testid="stSidebar"] { min-width: 80% !important; }
     }
 
     /* ---- Mobile Menu Hint ---- */
@@ -651,8 +674,8 @@ if page == "Score Entry":
         }}
         @keyframes popupAnim {{
             0%   {{ bottom: -150px; opacity: 0; }}
-            15%  {{ bottom: 40px; opacity: 1; }}
-            85%  {{ bottom: 40px; opacity: 1; }}
+            8%   {{ bottom: 40px; opacity: 1; }}
+            92%  {{ bottom: 40px; opacity: 1; }}
             100% {{ bottom: -150px; opacity: 0; }}
         }}
         .custom-popup-icon {{
@@ -676,10 +699,10 @@ if page == "Score Entry":
         }}
         </style>
         <div class="custom-popup">
-            <div class="custom-popup-icon">🎉</div>
+            <div class="custom-popup-icon">🚀</div>
             <div class="custom-popup-content">
-                <p class="custom-popup-title">Thank you, {eval_name_display}!</p>
-                <p class="custom-popup-subtitle">Successfully submitted {cand_name_display}</p>
+                <p class="custom-popup-title">Submission Successful!</p>
+                <p class="custom-popup-subtitle"><b>{eval_name_display}</b> evaluated <b>{cand_name_display}</b></p>
             </div>
         </div>
         """, unsafe_allow_html=True)
