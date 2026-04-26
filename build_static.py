@@ -59,7 +59,7 @@ def build():
       observer.observe(document.body, { childList: true, subtree: true });
 
       stlite.mount({
-        requirements: ["pandas", "plotly"],
+        requirements: ["pandas", "plotly", "sqlite3"],
         entrypoint: "app.py",
         files: {
           "app.py": `# ... [WE WILL INJECT THE CONTENT OF APP.PY HERE] ...`
