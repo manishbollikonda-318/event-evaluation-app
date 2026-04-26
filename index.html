@@ -41,7 +41,7 @@
       observer.observe(document.body, { childList: true, subtree: true });
 
       stlite.mount({
-        requirements: ["pandas", "plotly"],
+        requirements: ["pandas", "plotly", "sqlite3"],
         entrypoint: "app.py",
         files: {
           "app.py": `"""
@@ -506,12 +506,12 @@ if not st.session_state.tutorial_done:
                 if st.button("Skip Tutorial", key="tut_skip",
                              use_container_width=True):
                     st.session_state.tutorial_done = True
-                    st.rerun()
+                    st.experimental_rerun()
             with b_right:
                 if st.button("Next", key="tut_next", type="primary",
                              use_container_width=True):
                     st.session_state.tutorial_step += 1
-                    st.rerun()
+                    st.experimental_rerun()
 
         elif current < total - 1:
             # Middle steps: Back | Skip | Next
@@ -520,17 +520,17 @@ if not st.session_state.tutorial_done:
                 if st.button("Back", key="tut_back",
                              use_container_width=True):
                     st.session_state.tutorial_step -= 1
-                    st.rerun()
+                    st.experimental_rerun()
             with b2:
                 if st.button("Skip", key="tut_skip",
                              use_container_width=True):
                     st.session_state.tutorial_done = True
-                    st.rerun()
+                    st.experimental_rerun()
             with b3:
                 if st.button("Next", key="tut_next", type="primary",
                              use_container_width=True):
                     st.session_state.tutorial_step += 1
-                    st.rerun()
+                    st.experimental_rerun()
 
         else:
             # Last step: Back | Get Started
@@ -539,12 +539,12 @@ if not st.session_state.tutorial_done:
                 if st.button("Back", key="tut_back",
                              use_container_width=True):
                     st.session_state.tutorial_step -= 1
-                    st.rerun()
+                    st.experimental_rerun()
             with b_right:
                 if st.button("Get Started", key="tut_finish", type="primary",
                              use_container_width=True):
                     st.session_state.tutorial_done = True
-                    st.rerun()
+                    st.experimental_rerun()
 
     # Block the rest of the app from rendering during the tutorial
     st.stop()
@@ -560,7 +560,7 @@ if not st.session_state.tutorial_done:
 #   Streamlit raises StreamlitAPIException if you modify session_state for a
 #   widget key AFTER that widget has already been instantiated in the current
 #   script run.  To work around this, we use a flag ('form_submitted'):
-#     1. On submit  -> set flag to True, call st.rerun()
+#     1. On submit  -> set flag to True, call st.experimental_rerun()
 #     2. On the NEXT rerun (before widgets render) -> detect the flag,
 #        clear the keys, delete the flag.  Now the widgets see fresh defaults.
 # ============================================================================
@@ -748,7 +748,7 @@ if page == "Score Entry":
                     "cand": candidate_name.strip(),
                     "eval": evaluator_name.strip()
                 }
-                st.rerun()
+                st.experimental_rerun()
 
 
 # ============================================================================
@@ -964,7 +964,7 @@ elif page == "Raw Data":
             if st.button("Delete Record", type="secondary"):
                 if delete_score(int(delete_id)):
                     st.toast(f"Record #{delete_id} deleted.")
-                    st.rerun()
+                    st.experimental_rerun()
 
         st.markdown("---")
         csv_data = display_raw.drop(columns=['id']).to_csv(index=False)
