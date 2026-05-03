@@ -68,3 +68,38 @@ streamlit run app.py
 <p align="center">
   <i>"Excellence is not an act, but a habit. This is Sovereign Evaluation."</i>
 </p>
+
+
+## 📦 Installation & Setup
+
+```bash
+# Clone the repository
+git clone <repository_url>
+cd event-evaluation-app
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the app locally
+streamlit run app.py
+```
+
+## 🚀 Usage
+
+- Open the app in your browser at `http://localhost:8501`.
+- Use the **Score Entry** tab to input candidate scores.
+- Navigate to the **Executive Dashboard** for analytics and AI insights.
+- Access the **Data Mastery** tab to monitor database health and manage records.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+1. Fork the repository.
+2. Create a new feature branch.
+3. Ensure code follows the project's style guidelines (see UI/UX Pro Max Skill).
+4. Run tests and lint checks before committing.
+5. Open a Pull Request with a clear description of changes.
+
+## 📄 License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.

@@ -187,209 +187,243 @@ st.markdown("""
     /* Global Overrides */
     html, body, [data-testid="stAppViewContainer"] {
         font-family: 'Inter', sans-serif;
-        background: radial-gradient(circle at top left, #0f172a 0%, #020617 100%) !important;
+        background: radial-gradient(circle at top right, #0B1120 0%, #030712 100%) !important;
         color: #f8fafc !important;
     }
 
     /* Transparent Sidebar with Blur */
     [data-testid="stSidebar"] {
-        background-color: rgba(15, 23, 42, 0.8) !important;
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
+        background-color: rgba(9, 14, 23, 0.7) !important;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         border-right: 1px solid rgba(255, 255, 255, 0.05);
         min-width: 300px !important;
     }
 
+    /* Sidebar Navigation glowing state */
+    .stRadio > div[role="radiogroup"] > label {
+        background: transparent !important;
+        padding: 10px 15px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    .stRadio > div[role="radiogroup"] > label[data-checked="true"] {
+        background: rgba(56, 189, 248, 0.1) !important;
+        border-left: 4px solid #38bdf8 !important;
+        box-shadow: inset 20px 0 30px -20px rgba(56, 189, 248, 0.3);
+    }
+    
     [data-testid="stSidebarNav"] {
         background-color: transparent !important;
     }
 
-    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
-        color: #94a3b8 !important;
-        font-weight: 500;
-        font-size: 1rem;
+    /* Premium Logo Container */
+    .premium-logo {
+        padding: 1.5rem;
+        background: linear-gradient(145deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        margin-bottom: 24px;
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05), 0 8px 20px rgba(0,0,0,0.3);
     }
-
-    /* Typography: Beast Mode Headers */
-    .main-header {
-        font-family: 'Outfit', sans-serif;
-        font-size: 3.5rem;
-        font-weight: 800;
-        background: linear-gradient(to right, #60a5fa, #2563eb);
+    .premium-logo h3 {
+        margin: 0;
+        background: linear-gradient(to right, #38bdf8, #818cf8);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.4rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Typography */
+    .main-header {
+        font-family: 'Outfit', sans-serif;
+        font-size: 3.2rem;
+        font-weight: 800;
+        color: #f8fafc;
         margin-bottom: 0.5rem;
         letter-spacing: -0.02em;
-        filter: drop-shadow(0 10px 20px rgba(37, 99, 235, 0.2));
     }
 
     .sub-header {
-        font-size: 1.25rem;
+        font-size: 1.1rem;
         color: #94a3b8;
-        margin-bottom: 3rem;
-        font-weight: 300;
+        margin-bottom: 2.5rem;
+        font-weight: 400;
         line-height: 1.6;
     }
 
-    /* Glassmorphism 2.0 Cards */
-    .metric-card, .stMetric, div[data-testid="stForm"], .score-preview, .tutorial-card {
+    /* Inputs with Glowing Focus */
+    div[data-baseweb="input"] {
+        background: rgba(15, 23, 42, 0.6) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 12px !important;
+        transition: all 0.3s ease !important;
+    }
+    div[data-baseweb="input"]:focus-within {
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.3) !important;
+    }
+    div[data-baseweb="input"] input {
+        color: #f8fafc !important;
+    }
+
+    /* Glassmorphism Cards */
+    .metric-card, .tutorial-card {
         background: rgba(30, 41, 59, 0.4) !important;
         backdrop-filter: blur(12px) !important;
         -webkit-backdrop-filter: blur(12px) !important;
         border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 24px !important;
+        border-radius: 20px !important;
         padding: 1.5rem !important;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3) !important;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2) !important;
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
 
-    .metric-card:hover, div[data-testid="stForm"]:hover {
-        transform: translateY(-8px);
-        border-color: rgba(59, 130, 246, 0.3) !important;
-        box-shadow: 0 30px 60px rgba(59, 130, 246, 0.1) !important;
-        background: rgba(30, 41, 59, 0.6) !important;
+    /* Bento Box Design */
+    .bento-container {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
     }
-
-    .metric-card h3 {
-        color: #60a5fa !important;
+    .bento-card {
+        background: rgba(30, 41, 59, 0.3);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 24px;
+        padding: 24px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    .bento-main {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Circular Progress Gauge */
+    .flex-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .single-chart {
+        width: 180px;
+        justify-content: space-around;
+        filter: drop-shadow(0 0 15px rgba(0, 0, 0, 0.3));
+    }
+    .circular-chart {
+        display: block;
+        margin: 0 auto;
+        max-width: 100%;
+        max-height: 250px;
+    }
+    .circle-bg {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.05);
+        stroke-width: 2.5;
+    }
+    .circle {
+        fill: none;
+        stroke-width: 2.8;
+        stroke-linecap: round;
+        transition: stroke-dasharray 1s ease-out;
+    }
+    .percentage {
+        fill: #f8fafc;
         font-family: 'Outfit', sans-serif;
-        font-size: 2.8rem !important;
-        margin: 0 !important;
-        font-weight: 800 !important;
+        font-weight: 800;
+        font-size: 0.6em;
+        text-anchor: middle;
     }
 
-    .metric-card p {
-        color: #94a3b8 !important;
-        font-size: 0.85rem !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.15em !important;
-        margin: 0.5rem 0 0 0 !important;
-        font-weight: 700 !important;
+    /* Sub-score Mini Bars */
+    .sub-score-item {
+        margin-top: 16px;
+    }
+    .sub-score-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        color: #94a3b8;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+    .mini-track {
+        height: 8px;
+        background: rgba(0,0,0,0.3);
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.05);
+    }
+    .mini-fill {
+        height: 100%;
+        border-radius: 10px;
+        box-shadow: inset 0 0 10px rgba(255,255,255,0.2);
+        transition: width 0.5s ease-out;
     }
 
     /* Premium Button Stack */
     .stButton > button {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+        background: linear-gradient(135deg, #38bdf8 0%, #3b82f6 100%) !important;
         color: white !important;
-        border: none !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
         padding: 0.8rem 2rem !important;
         border-radius: 14px !important;
         font-weight: 700 !important;
         width: 100% !important;
         transition: all 0.3s ease !important;
-        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2) !important;
+        box-shadow: 0 10px 20px rgba(56, 189, 248, 0.2) !important;
         text-transform: uppercase !important;
         letter-spacing: 0.05em !important;
         font-family: 'Outfit', sans-serif !important;
     }
 
     .stButton > button:hover {
-        transform: scale(1.02) !important;
-        box-shadow: 0 15px 30px rgba(37, 99, 235, 0.4) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 15px 30px rgba(56, 189, 248, 0.4) !important;
         filter: brightness(1.1);
-        animation: pulseBeast 1s infinite alternate;
     }
 
-    @keyframes pulseBeast {
-        0% { box-shadow: 0 15px 30px rgba(37, 99, 235, 0.4); }
-        100% { box-shadow: 0 15px 50px rgba(37, 99, 235, 0.7); }
+    /* Custom Sliders */
+    .stSlider > div > div > div > div {
+        background: linear-gradient(90deg, #38bdf8, #818cf8) !important;
     }
-
-    /* Slider Beast Mode */
+    .stSlider > div > div > div > div > div {
+        background-color: #ffffff !important;
+        border: 2px solid #818cf8 !important;
+        box-shadow: 0 0 10px rgba(129, 140, 248, 0.6) !important;
+    }
     .stSlider label p {
-        color: #f8fafc !important;
+        color: #e2e8f0 !important;
         font-weight: 600 !important;
-        font-size: 1rem !important;
+        font-size: 0.95rem !important;
     }
-    
-    /* Live Indicator */
-    .live-indicator {
+
+    /* Glowing Pill Status */
+    .status-pill {
         display: inline-block;
-        width: 12px;
-        height: 12px;
-        background: #22c55e;
-        border-radius: 50%;
-        margin-right: 12px;
-        box-shadow: 0 0 15px rgba(34, 197, 94, 0.6);
-        animation: beacon 2s infinite;
-    }
-
-    @keyframes beacon {
-        0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-        70% { transform: scale(1.2); opacity: 0.8; box-shadow: 0 0 0 15px rgba(34, 197, 94, 0); }
-        100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-    }
-
-    /* Success Popup */
-    .custom-popup {
-        position: fixed;
-        top: -150px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #1e293b !important; /* Solid background for performance */
-        border: 1px solid rgba(59, 130, 246, 0.5);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-        padding: 20px 30px;
-        border-radius: 24px;
-        z-index: 1000000;
-        width: 90%;
-        max-width: 400px;
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        animation: popupBeast 3s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        padding: 8px 24px;
+        border-radius: 30px;
         font-family: 'Outfit', sans-serif;
+        font-weight: 800;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 24px;
+        backdrop-filter: blur(10px);
     }
-
-    @keyframes popupBeast {
-        0%   { top: -150px; opacity: 0; transform: translateX(-50%) scale(0.9); }
-        15%  { top: 60px; opacity: 1; transform: translateX(-50%) scale(1); }
-        85%  { top: 60px; opacity: 1; transform: translateX(-50%) scale(1); }
-        100% { top: -150px; opacity: 0; transform: translateX(-50%) scale(0.9); }
-    }
-
-    .popup-icon {
-        background: linear-gradient(135deg, #22c55e, #10b981);
-        width: 50px; height: 50px;
-        border-radius: 15px;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 24px;
-        box-shadow: 0 10px 20px rgba(34, 197, 94, 0.3);
-    }
-
-    .popup-text h4 { margin: 0; color: white; font-size: 1.1rem; font-weight: 700; }
-    .popup-text p { margin: 4px 0 0 0; color: #94a3b8; font-size: 0.9rem; }
-
-    /* Mobile UX & Lag Optimization */
-    @media (max-width: 768px) {
-        .main-header { font-size: 2.2rem; margin-top: 1rem !important; }
-        .block-container { padding: 1rem !important; }
-        [data-testid="stSidebar"] { 
-            width: 85% !important; 
-            background-color: #0f172a !important; /* Solid on mobile for speed */
-            backdrop-filter: none !important;
-        }
-        /* Disable heavy effects on mobile */
-        .glass-card, .stMetric, div[data-testid="stForm"], .score-preview {
-            background: #1e293b !important;
-            backdrop-filter: none !important;
-            box-shadow: none !important;
-        }
-        .main-header {
-            filter: none !important;
-        }
-    }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
     /* Hide UI Noise */
     #MainMenu, footer, header { visibility: hidden; }
 </style>
-""", unsafe_allow_html=True)
+""", unsafe_allow_html=True), unsafe_allow_html=True)
 
 
 # ============================================================================
@@ -397,19 +431,24 @@ st.markdown("""
 # ============================================================================
 with st.sidebar:
     st.markdown("""
-    <div style="padding: 10px; background: rgba(37, 99, 235, 0.1); border-radius: 15px; margin-bottom: 20px; border: 1px solid rgba(37, 99, 235, 0.2);">
-        <h3 style="margin:0; color:#60a5fa; font-family:'Outfit'; font-size:1.2rem;">⚡ SOVEREIGN v10</h3>
-        <p style="margin:5px 0 0 0; font-size:0.7rem; color:#94a3b8; text-transform:uppercase; letter-spacing:1px;">Active Engine Status: NOMINAL</p>
+    <div class="premium-logo">
+        <h3>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #38bdf8;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            SOVEREIGN
+        </h3>
+        <p style="margin:4px 0 0 0; font-size:0.75rem; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; font-weight:600;">Engine v10 &bull; Active</p>
     </div>
     """, unsafe_allow_html=True)
     
     page = st.radio(
         "Navigation",
-        ["Score Entry", "Executive Dashboard", "Data Mastery"]
+        ["Score Entry", "Executive Dashboard", "Data Mastery"],
+        label_visibility="collapsed"
     )
     
     st.markdown("---")
-    st.markdown("##### System Actions")
+    st.markdown("<h5 style='color:#94a3b8; font-size:0.85rem; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;'>System Actions</h5>", unsafe_allow_html=True)
+    
     if st.button("🔄 Force Data Refresh"):
         get_raw_data.clear()
         st.rerun()
@@ -419,7 +458,7 @@ with st.sidebar:
     if not raw_df_export.empty:
         csv = raw_df_export.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="📥 Download Full Report (CSV)",
+            label="📥 Download CSV",
             data=csv,
             file_name=f"event_eval_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
             mime='text/csv',
@@ -496,10 +535,10 @@ if page == "Score Entry":
     )
 
     # ---- Two-column layout: Controls LEFT | Live Feedback RIGHT ----
-    col_left, col_spacer, col_right = st.columns([3, 0.3, 2])
+    col_left, col_spacer, col_right = st.columns([1.1, 0.1, 1])
 
     with col_left:
-        st.markdown("##### Candidate Details")
+        st.markdown("<h5 style='color:#e2e8f0; margin-bottom:16px;'>Candidate Details</h5>", unsafe_allow_html=True)
         candidate_name = st.text_input(
             "Candidate Name",
             placeholder="e.g., Priya Sharma",
@@ -511,8 +550,8 @@ if page == "Score Entry":
             key=f"eval_name_{st.session_state.reset_counter}"
         )
 
-        st.markdown("---")
-        st.markdown("##### Scoring Criteria")
+        st.markdown("<hr style='border-color: rgba(255,255,255,0.05); margin: 24px 0;'>", unsafe_allow_html=True)
+        st.markdown("<h5 style='color:#e2e8f0; margin-bottom:16px;'>Scoring Criteria</h5>", unsafe_allow_html=True)
 
         technical_score = st.slider(
             "Technical Skills",
@@ -533,53 +572,72 @@ if page == "Score Entry":
             help="Rate how well the candidate aligns with the team's culture and goals."
         )
 
-        st.markdown("")  # spacing
-
-        # ---- Submit Button (renamed from "Transmit Evaluation") ----
-        submitted = st.button("Submit Scores", use_container_width=True, type="primary")
+        st.markdown("<br>", unsafe_allow_html=True)
+        submitted = st.button("Submit Evaluation", use_container_width=True, type="primary")
 
     # ---- RIGHT Column: Live Score Preview ----
     with col_right:
         total_preview = technical_score + communication_score + overall_fit_score
 
-        st.markdown("##### Live Score Preview")
-        st.markdown(
-            f'<div class="score-preview">'
-            f'  <div class="total-number">{total_preview}</div>'
-            f'  <div class="total-label">out of 30</div>'
-            f'  <div class="score-breakdown">'
-            f'    <div class="item">'
-            f'      <div class="value">{technical_score}</div>'
-            f'      <div class="label">Technical</div>'
-            f'    </div>'
-            f'    <div class="item">'
-            f'      <div class="value">{communication_score}</div>'
-            f'      <div class="label">Communication</div>'
-            f'    </div>'
-            f'    <div class="item">'
-            f'      <div class="value">{overall_fit_score}</div>'
-            f'      <div class="label">Overall Fit</div>'
-            f'    </div>'
-            f'  </div>'
-            f'</div>',
-            unsafe_allow_html=True
-        )
-
-        # Visual score quality indicator
         if total_preview >= 24:
-            quality = ("Excellent", "#22c55e")
+            quality = ("EXCELLENT", "#34d399", "52, 211, 153")
         elif total_preview >= 18:
-            quality = ("Good", "#2563EB")
+            quality = ("STRONG", "#38bdf8", "56, 189, 248")
         elif total_preview >= 12:
-            quality = ("Average", "#f59e0b")
+            quality = ("AVERAGE", "#fb923c", "251, 146, 60")
         else:
-            quality = ("Below Average", "#ef4444")
+            quality = ("NEEDS REVIEW", "#f87171", "248, 113, 113")
 
+        st.markdown("<h5 style='color:#e2e8f0; margin-bottom:16px;'>Score Preview</h5>", unsafe_allow_html=True)
         st.markdown(
-            f'<p style="text-align:center; margin-top:0.5rem;">'
-            f'<span style="background:{quality[1]}; color:white; padding:0.3rem 0.8rem; '
-            f'border-radius:20px; font-size:0.8rem; font-weight:600;">'
-            f'{quality[0]}</span></p>',
+            f'''
+            <div class="bento-container">
+                <div class="bento-card bento-main">
+                    <div style="font-family:'Outfit'; font-weight:600; font-size: 0.85rem; letter-spacing: 0.05em; color:#94a3b8; margin-bottom:16px; text-transform: uppercase;">Total Yield</div>
+                    <div class="flex-wrapper">
+                      <div class="single-chart">
+                        <svg viewBox="0 0 36 36" class="circular-chart">
+                          <path class="circle-bg"
+                            d="M18 2.0845
+                              a 15.9155 15.9155 0 0 1 0 31.831
+                              a 15.9155 15.9155 0 0 1 0 -31.831"
+                          />
+                          <path class="circle"
+                            stroke-dasharray="{(total_preview / 30) * 100}, 100"
+                            stroke="{quality[1]}"
+                            d="M18 2.0845
+                              a 15.9155 15.9155 0 0 1 0 31.831
+                              a 15.9155 15.9155 0 0 1 0 -31.831"
+                          />
+                          <text x="18" y="21.5" class="percentage">{total_preview}</text>
+                        </svg>
+                      </div>
+                    </div>
+                    <div class="status-pill" style="background: rgba({quality[2]}, 0.15); color: {quality[1]}; border: 1px solid rgba({quality[2]}, 0.4); box-shadow: 0 0 20px rgba({quality[2]}, 0.2);">
+                        {quality[0]}
+                    </div>
+                </div>
+                
+                <div class="bento-card">
+                    <div style="font-family:'Outfit'; font-weight:600; font-size: 0.85rem; letter-spacing: 0.05em; color:#94a3b8; margin-bottom:12px; text-transform: uppercase;">Criteria Breakdown</div>
+                    
+                    <div class="sub-score-item">
+                        <div class="sub-score-header"><span>Technical</span><span style="color:#e2e8f0;">{technical_score}/10</span></div>
+                        <div class="mini-track"><div class="mini-fill" style="width: {technical_score*10}%; background: #38bdf8; box-shadow: 0 0 8px #38bdf8;"></div></div>
+                    </div>
+                    
+                    <div class="sub-score-item">
+                        <div class="sub-score-header"><span>Communication</span><span style="color:#e2e8f0;">{communication_score}/10</span></div>
+                        <div class="mini-track"><div class="mini-fill" style="width: {communication_score*10}%; background: #a78bfa; box-shadow: 0 0 8px #a78bfa;"></div></div>
+                    </div>
+                    
+                    <div class="sub-score-item">
+                        <div class="sub-score-header"><span>Overall Fit</span><span style="color:#e2e8f0;">{overall_fit_score}/10</span></div>
+                        <div class="mini-track"><div class="mini-fill" style="width: {overall_fit_score*10}%; background: #34d399; box-shadow: 0 0 8px #34d399;"></div></div>
+                    </div>
+                </div>
+            </div>
+            ''',
             unsafe_allow_html=True
         )
 

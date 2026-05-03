@@ -97,14 +97,26 @@ tr:hover td{background:rgba(255,255,255,.03)}
 .section-title{font-size:.8rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.12em;margin-bottom:1rem}
 hr.divider{border:none;border-top:1px solid rgba(255,255,255,.07);margin:1.5rem 0}
 
-/* Responsive */
+/* Responsive & Lag Optimization */
 @media(max-width:768px){
-  .sidebar{width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap;padding:1rem;gap:.5rem}
+  .sidebar{
+    width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap;padding:1rem;gap:.5rem;
+    background:#0f172a !important; /* Solid on mobile */
+    backdrop-filter:none !important;
+  }
   .main{margin-left:0;padding:1rem}
   .metrics-row{grid-template-columns:1fr 1fr}
   .two-col{grid-template-columns:1fr}
   .page-title{font-size:2rem}
   .sidebar-logo{margin-bottom:0;margin-right:auto}
+  
+  /* Solid cards on mobile for performance */
+  .glass-card, .metric-card {
+    background:#1e293b !important;
+    backdrop-filter:none !important;
+    box-shadow:none !important;
+  }
+  .page-title { filter:none !important; }
 }
 </style>
 </head>
