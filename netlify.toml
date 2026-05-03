@@ -1,6 +1,7 @@
 # netlify.toml
 [build]
-  command = "pip install -r requirements.txt && streamlit run app.py --server.port $PORT"
+  # Only install dependencies during build; do NOT run streamlit here
+  command = "pip install -r requirements.txt"
   publish = "."
 
 [context.production.environment]
