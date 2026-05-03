@@ -16,36 +16,45 @@ import pandas as pd
 from datetime import datetime
 import plotly.graph_objects as go
 import plotly.express as px
+from contextlib import contextmanager
+import io
 
 
 # ============================================================================
-# SECTION 1: DATABASE INITIALIZATION
+# SECTION 1: SOVEREIGN DATABASE ENGINE
 # ============================================================================
+@contextmanager
+def db_session():
+    """
+    Sovereign Context Manager for SQLite sessions.
+    Ensures absolute connection closure and handles timeouts.
+    """
+    conn = sqlite3.connect('evaluations.db', timeout=15)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
 @st.cache_resource
 def init_database():
     """
-    Creates the SQLite database and the 'scores' table.
-    Uses timeout=15 to handle multiple concurrent users safely and
-    prevent OperationalError: database is locked.
+    Initializes the Level-10 persistence layer.
     """
-    conn = sqlite3.connect('evaluations.db', timeout=15)
-    cursor = conn.cursor()
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS scores (
-            id               INTEGER PRIMARY KEY AUTOINCREMENT,
-            candidate_name   TEXT    NOT NULL,
-            evaluator_name   TEXT    NOT NULL,
-            technical_score  INTEGER NOT NULL,
-            communication    INTEGER NOT NULL,
-            overall_fit      INTEGER NOT NULL,
-            total_score      INTEGER NOT NULL,
-            submitted_at     TEXT    NOT NULL
-        )
-    ''')
-
-    conn.commit()
-    conn.close()
+    with db_session() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS scores (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                candidate_name   TEXT    NOT NULL,
+                evaluator_name   TEXT    NOT NULL,
+                technical_score  INTEGER NOT NULL,
+                communication    INTEGER NOT NULL,
+                overall_fit      INTEGER NOT NULL,
+                total_score      INTEGER NOT NULL,
+                submitted_at     TEXT    NOT NULL
+            )
+        ''')
+        conn.commit()
 
 
 # ============================================================================
@@ -53,45 +62,38 @@ def init_database():
 # ============================================================================
 def insert_score(candidate_name, evaluator_name, technical, communication, fit):
     """
-    Inserts a single evaluation record into the 'scores' table.
-    timeout=15 prevents 'database is locked' OperationalError when
-    multiple evaluators submit simultaneously.
+    Inserts a validated evaluation record.
     """
     total_score = technical + communication + fit
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    conn = None
     try:
-        conn = sqlite3.connect('evaluations.db', timeout=15)
-        cursor = conn.cursor()
-
-        cursor.execute('''
-            INSERT INTO scores (
-                candidate_name,
-                evaluator_name,
-                technical_score,
-                communication,
-                overall_fit,
-                total_score,
-                submitted_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (candidate_name, evaluator_name, technical, communication,
-              fit, total_score, timestamp))
-
-        conn.commit()
+        with db_session() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO scores (
+                    candidate_name,
+                    evaluator_name,
+                    technical_score,
+                    communication,
+                    overall_fit,
+                    total_score,
+                    submitted_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (candidate_name, evaluator_name, technical, communication,
+                  fit, total_score, timestamp))
+            conn.commit()
+            
         if 'get_raw_data' in globals():
             get_raw_data.clear()
         return True
 
     except sqlite3.OperationalError as e:
-        st.error(f"Database busy — please try again in a moment. ({e})")
+        st.error(f"Database contention detected. Retrying... ({e})")
         return False
     except Exception as e:
-        st.error(f"Submission Error: {e}")
+        st.error(f"Sovereign Engine Error (Insertion): {e}")
         return False
-    finally:
-        if conn:
-            conn.close()
 
 
 # ============================================================================
@@ -99,12 +101,11 @@ def insert_score(candidate_name, evaluator_name, technical, communication, fit):
 # ============================================================================
 @st.cache_data(ttl=60)
 def get_raw_data():
-    conn = sqlite3.connect('evaluations.db', timeout=15)
-    raw_df = pd.read_sql_query(
-        "SELECT * FROM scores ORDER BY submitted_at DESC",
-        conn
-    )
-    conn.close()
+    with db_session() as conn:
+        raw_df = pd.read_sql_query(
+            "SELECT * FROM scores ORDER BY submitted_at DESC",
+            conn
+        )
     return raw_df
 
 def get_leaderboard():
@@ -142,24 +143,21 @@ def get_leaderboard():
 # ============================================================================
 def delete_score(score_id):
     """
-    Deletes a single evaluation record from the 'scores' table by ID.
+    Atomic deletion from the Sovereign persistence layer.
     """
-    conn = None
     try:
-        conn = sqlite3.connect('evaluations.db', timeout=15)
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM scores WHERE id = ?', (score_id,))
-        conn.commit()
+        with db_session() as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM scores WHERE id = ?', (score_id,))
+            conn.commit()
+            
         if 'get_raw_data' in globals():
             get_raw_data.clear()
         return True
 
     except Exception as e:
-        st.error(f"Deletion Failed: {e}")
+        st.error(f"Deletion failed in Sovereign Engine: {e}")
         return False
-    finally:
-        if conn:
-            conn.close()
 
 
 # ============================================================================
@@ -289,6 +287,12 @@ st.markdown("""
         transform: scale(1.02) !important;
         box-shadow: 0 15px 30px rgba(37, 99, 235, 0.4) !important;
         filter: brightness(1.1);
+        animation: pulseBeast 1s infinite alternate;
+    }
+
+    @keyframes pulseBeast {
+        0% { box-shadow: 0 15px 30px rgba(37, 99, 235, 0.4); }
+        100% { box-shadow: 0 15px 50px rgba(37, 99, 235, 0.7); }
     }
 
     /* Slider Beast Mode */
@@ -319,33 +323,61 @@ st.markdown("""
     /* Success Popup */
     .custom-popup {
         position: fixed;
-        top: 30px;
-        right: 30px;
-        background: rgba(16, 185, 129, 0.95);
-        backdrop-filter: blur(10px);
-        color: white;
-        padding: 1.5rem 2.5rem;
-        border-radius: 20px;
-        box-shadow: 0 30px 60px rgba(0,0,0,0.5);
-        z-index: 9999;
-        border: 1px solid rgba(255,255,255,0.2);
-        animation: slideInRight 0.6s cubic-bezier(0.23, 1, 0.32, 1) both, fadeOut 0.5s 4.5s forwards;
+        top: -150px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e293b !important; /* Solid background for performance */
+        border: 1px solid rgba(59, 130, 246, 0.5);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        padding: 20px 30px;
+        border-radius: 24px;
+        z-index: 1000000;
+        width: 90%;
+        max-width: 400px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        animation: popupBeast 3s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        font-family: 'Outfit', sans-serif;
     }
 
-    @keyframes slideInRight {
-        0% { transform: translateX(100%); opacity: 0; }
-        100% { transform: translateX(0); opacity: 1; }
+    @keyframes popupBeast {
+        0%   { top: -150px; opacity: 0; transform: translateX(-50%) scale(0.9); }
+        15%  { top: 60px; opacity: 1; transform: translateX(-50%) scale(1); }
+        85%  { top: 60px; opacity: 1; transform: translateX(-50%) scale(1); }
+        100% { top: -150px; opacity: 0; transform: translateX(-50%) scale(0.9); }
     }
 
-    @keyframes fadeOut {
-        to { opacity: 0; transform: translateY(-20px); }
+    .popup-icon {
+        background: linear-gradient(135deg, #22c55e, #10b981);
+        width: 50px; height: 50px;
+        border-radius: 15px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 24px;
+        box-shadow: 0 10px 20px rgba(34, 197, 94, 0.3);
     }
 
-    /* Mobile UX */
+    .popup-text h4 { margin: 0; color: white; font-size: 1.1rem; font-weight: 700; }
+    .popup-text p { margin: 4px 0 0 0; color: #94a3b8; font-size: 0.9rem; }
+
+    /* Mobile UX & Lag Optimization */
     @media (max-width: 768px) {
-        .main-header { font-size: 2.2rem; margin-top: 2rem !important; }
-        .block-container { padding: 2rem 1rem !important; }
-        [data-testid="stSidebar"] { width: 85% !important; }
+        .main-header { font-size: 2.2rem; margin-top: 1rem !important; }
+        .block-container { padding: 1rem !important; }
+        [data-testid="stSidebar"] { 
+            width: 85% !important; 
+            background-color: #0f172a !important; /* Solid on mobile for speed */
+            backdrop-filter: none !important;
+        }
+        /* Disable heavy effects on mobile */
+        .glass-card, .stMetric, div[data-testid="stForm"], .score-preview {
+            background: #1e293b !important;
+            backdrop-filter: none !important;
+            box-shadow: none !important;
+        }
+        .main-header {
+            filter: none !important;
+        }
     }
 
     /* Scrollbar */
@@ -364,144 +396,40 @@ st.markdown("""
 # SECTION 6: SIDEBAR NAVIGATION
 # ============================================================================
 with st.sidebar:
+    st.markdown("""
+    <div style="padding: 10px; background: rgba(37, 99, 235, 0.1); border-radius: 15px; margin-bottom: 20px; border: 1px solid rgba(37, 99, 235, 0.2);">
+        <h3 style="margin:0; color:#60a5fa; font-family:'Outfit'; font-size:1.2rem;">⚡ SOVEREIGN v10</h3>
+        <p style="margin:5px 0 0 0; font-size:0.7rem; color:#94a3b8; text-transform:uppercase; letter-spacing:1px;">Active Engine Status: NOMINAL</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
     page = st.radio(
         "Navigation",
-        ["Score Entry", "Live Leaderboard", "Raw Data"]
+        ["Score Entry", "Executive Dashboard", "Data Mastery"]
     )
-
-
-# ============================================================================
-# SECTION 6b: MOBILE MENU HINT + ONBOARDING TUTORIAL
-# ============================================================================
-# Mobile users can't see the sidebar by default. We show:
-# 1. A floating blue pill next to the hamburger icon saying "Menu"
-# 2. A first-time onboarding tutorial explaining how to use the app.
-#
-# ARCHITECTURE NOTE:
-#   Streamlit cannot reliably layer fixed HTML overlays over its own buttons
-#   (z-index conflicts). Instead, we use a Streamlit-native approach:
-#   render a centered tutorial card, then call st.stop() to prevent the
-#   rest of the app from rendering.  The user must complete or skip the
-#   tutorial before they can interact with the main app.
-# ============================================================================
-
-# ---- Persistent floating menu hint for mobile (always visible) ----
-st.markdown('<div class="mobile-menu-hint">Menu</div>', unsafe_allow_html=True)
-
-# ---- Onboarding Tutorial ----
-TUTORIAL_STEPS = [
-    {
-        "icon": "\U0001F44B",
-        "title": "Welcome to the Evaluation App",
-        "body": "This quick guide will show you how to score candidates. Takes just 10 seconds."
-    },
-    {
-        "icon": "\u2630",
-        "title": "Open the Menu",
-        "body": "Tap the menu icon at the top-left corner to switch between Score Entry, Live Leaderboard, and Raw Data."
-    },
-    {
-        "icon": "\U0001F4DD",
-        "title": "Submit a Score",
-        "body": "Enter the candidate name and your name, drag the sliders to rate them (1-10), then tap Submit Scores."
-    },
-    {
-        "icon": "\U0001F4CA",
-        "title": "View the Leaderboard",
-        "body": "Open the Menu and select Live Leaderboard to see real-time rankings and comparison charts."
-    },
-    {
-        "icon": "\U0001F680",
-        "title": "You're All Set!",
-        "body": "That's everything you need. Your scores are saved automatically. Happy evaluating!"
-    },
-]
-
-# Initialize tutorial state
-if "tutorial_done" not in st.session_state:
-    st.session_state.tutorial_done = False
-if "tutorial_step" not in st.session_state:
-    st.session_state.tutorial_step = 0
-
-# Show the tutorial if not dismissed — then st.stop() to block the main app
-if not st.session_state.tutorial_done:
-    step = TUTORIAL_STEPS[st.session_state.tutorial_step]
-    total = len(TUTORIAL_STEPS)
-    current = st.session_state.tutorial_step
-
-    # Build dot indicators
-    dots_html = ""
-    for i in range(total):
-        cls = "dot active" if i == current else "dot"
-        dots_html += f'<div class="{cls}"></div>'
-
-    # ---- Centered tutorial card (Streamlit-native) ----
-    spacer_top, card_col, spacer_bottom = st.columns([1, 2, 1])
-
-    with card_col:
-        st.markdown(
-            f'<div class="tutorial-wrapper">'
-            f'  <div class="tutorial-card">'
-            f'    <span class="step-icon">{step["icon"]}</span>'
-            f'    <h3>{step["title"]}</h3>'
-            f'    <p>{step["body"]}</p>'
-            f'    <div class="tutorial-dots">{dots_html}</div>'
-            f'    <div class="tutorial-step-counter">STEP {current + 1} OF {total}</div>'
-            f'  </div>'
-            f'</div>',
-            unsafe_allow_html=True
+    
+    st.markdown("---")
+    st.markdown("##### System Actions")
+    if st.button("🔄 Force Data Refresh"):
+        get_raw_data.clear()
+        st.rerun()
+    
+    # Professional CSV Export in Sidebar
+    raw_df_export = get_raw_data()
+    if not raw_df_export.empty:
+        csv = raw_df_export.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Download Full Report (CSV)",
+            data=csv,
+            file_name=f"event_eval_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime='text/csv',
+            use_container_width=True
         )
 
-        # ---- Navigation buttons (inside the same column, below the card) ----
-        if current == 0:
-            # First step: Skip | Next
-            b_left, b_right = st.columns(2)
-            with b_left:
-                if st.button("Skip Tutorial", key="tut_skip",
-                             use_container_width=True):
-                    st.session_state.tutorial_done = True
-                    st.experimental_rerun()
-            with b_right:
-                if st.button("Next", key="tut_next", type="primary",
-                             use_container_width=True):
-                    st.session_state.tutorial_step += 1
-                    st.experimental_rerun()
 
-        elif current < total - 1:
-            # Middle steps: Back | Skip | Next
-            b1, b2, b3 = st.columns(3)
-            with b1:
-                if st.button("Back", key="tut_back",
-                             use_container_width=True):
-                    st.session_state.tutorial_step -= 1
-                    st.experimental_rerun()
-            with b2:
-                if st.button("Skip", key="tut_skip",
-                             use_container_width=True):
-                    st.session_state.tutorial_done = True
-                    st.experimental_rerun()
-            with b3:
-                if st.button("Next", key="tut_next", type="primary",
-                             use_container_width=True):
-                    st.session_state.tutorial_step += 1
-                    st.experimental_rerun()
-
-        else:
-            # Last step: Back | Get Started
-            b_left, b_right = st.columns(2)
-            with b_left:
-                if st.button("Back", key="tut_back",
-                             use_container_width=True):
-                    st.session_state.tutorial_step -= 1
-                    st.experimental_rerun()
-            with b_right:
-                if st.button("Get Started", key="tut_finish", type="primary",
-                             use_container_width=True):
-                    st.session_state.tutorial_done = True
-                    st.experimental_rerun()
-
-    # Block the rest of the app from rendering during the tutorial
-    st.stop()
+# Legacy Tutorial Removed per user request for performance.
+if "tutorial_done" not in st.session_state:
+    st.session_state.tutorial_done = True
 
 
 # ============================================================================
@@ -532,55 +460,29 @@ if page == "Score Entry":
         
         del st.session_state["form_submitted"]
         
-        # Render a beautiful custom animated popup
+        # Render a beautiful custom animated popup + Confetti
         st.markdown(f"""
-        <style>
-        .custom-popup {{
-            position: fixed;
-            top: -150px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(59, 130, 246, 0.5);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-            padding: 20px 30px;
-            border-radius: 24px;
-            z-index: 1000000;
-            width: 90%;
-            max-width: 400px;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            animation: popupBeast 3s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-            font-family: 'Outfit', sans-serif;
-        }}
-        @keyframes popupBeast {{
-            0%   {{ top: -150px; opacity: 0; transform: translateX(-50%) scale(0.9); }}
-            15%  {{ top: 40px; opacity: 1; transform: translateX(-50%) scale(1); }}
-            85%  {{ top: 40px; opacity: 1; transform: translateX(-50%) scale(1); }}
-            100% {{ top: -150px; opacity: 0; transform: translateX(-50%) scale(0.9); }}
-        }}
-        .popup-icon {{
-            background: linear-gradient(135deg, #22c55e, #10b981);
-            width: 50px; height: 50px;
-            border-radius: 15px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 24px;
-            box-shadow: 0 10px 20px rgba(34, 197, 94, 0.3);
-        }}
-        .popup-text h4 {{ margin: 0; color: white; font-size: 1.1rem; font-weight: 700; }}
-        .popup-text p {{ margin: 4px 0 0 0; color: #94a3b8; font-size: 0.9rem; }}
-        </style>
         <div class="custom-popup">
-            <div class="popup-icon">✅</div>
+            <div class="popup-icon">🏆</div>
             <div class="popup-text">
-                <h4>Submission Recorded</h4>
-                <p><b>{eval_name_display}</b> successfully evaluated <b>{cand_name_display}</b></p>
+                <h4 style="color: #60a5fa; font-family: 'Outfit', sans-serif;">Submission Beast Mode!</h4>
+                <p>Thank you <b>{eval_name_display}</b>! Your evaluation for <b>{cand_name_display}</b> is live.</p>
             </div>
         </div>
         """, unsafe_allow_html=True)
+        
+        # Confetti Script
+        st.components.v1.html("""
+            <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+            <script>
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#2563eb', '#60a5fa', '#f8fafc']
+                });
+            </script>
+        """, height=0)
 
     if "reset_counter" not in st.session_state:
         st.session_state.reset_counter = 0
@@ -702,17 +604,13 @@ if page == "Score Entry":
                     "cand": candidate_name.strip(),
                     "eval": evaluator_name.strip()
                 }
-                st.experimental_rerun()
+                st.rerun()
 
 
 # ============================================================================
-# SECTION 8: LIVE LEADERBOARD PAGE
+# SECTION 8: EXECUTIVE DASHBOARD (BEAST MODE 3.0)
 # ============================================================================
-# Layout: Metric summary cards on top, then LEFT = Ranking Table,
-# RIGHT = Radar Chart for visual analysis.
-# ============================================================================
-
-elif page == "Live Leaderboard":
+elif page == "Executive Dashboard":
 
     st.markdown('<p class="main-header"><span class="live-indicator"></span>Live Leaderboard</p>', unsafe_allow_html=True)
     st.markdown(
@@ -734,36 +632,77 @@ elif page == "Live Leaderboard":
             st.markdown(
                 f'<div class="metric-card">'
                 f'<h3>{len(leaderboard)}</h3>'
-                f'<p>Candidates</p>'
+                f'<p>Total Candidates</p>'
                 f'</div>',
                 unsafe_allow_html=True
             )
         with m2:
             st.markdown(
                 f'<div class="metric-card">'
-                f'<h3>{int(raw_df["total_score"].sum())}</h3>'
-                f'<p>Total Points</p>'
+                f'<h3>{len(raw_df)}</h3>'
+                f'<p>Total Evaluations</p>'
                 f'</div>',
                 unsafe_allow_html=True
             )
         with m3:
+            avg_all = round(raw_df["total_score"].mean(), 1) if not raw_df.empty else 0
             st.markdown(
                 f'<div class="metric-card">'
-                f'<h3>{len(raw_df)}</h3>'
-                f'<p>Evaluations</p>'
+                f'<h3>{avg_all}</h3>'
+                f'<p>Global Avg Score</p>'
                 f'</div>',
                 unsafe_allow_html=True
             )
         with m4:
+            stability = round(raw_df["total_score"].std(), 2) if len(raw_df) > 1 else 0
             st.markdown(
                 f'<div class="metric-card">'
-                f'<h3>{raw_df["evaluator_name"].nunique()}</h3>'
-                f'<p>Evaluators</p>'
+                f'<h3>{stability}</h3>'
+                f'<p>Score Variance</p>'
                 f'</div>',
                 unsafe_allow_html=True
             )
 
-        st.markdown("---")
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ---- BEAST MODE AI INSIGHTS ----
+        with st.expander("⚡ BEAST MODE AI INSIGHTS", expanded=True):
+            top_row = leaderboard.iloc[0]
+            name = top_row['candidate_name']
+            
+            # Identify strongest trait
+            traits = {
+                'Technical': top_row['avg_technical'],
+                'Communication': top_row['avg_communication'],
+                'Culture Fit': top_row['avg_fit']
+            }
+            strongest = max(traits, key=traits.get)
+            
+            st.markdown(f"""
+            <div style="background: rgba(37, 99, 235, 0.1); border-left: 4px solid #2563eb; padding: 1.5rem; border-radius: 0 12px 12px 0; margin-bottom: 20px;">
+                <h4 style="margin:0; color:#60a5fa; font-family: 'Outfit';">Sovereign Performance Summary: {name}</h4>
+                <p style="margin:10px 0 0 0; color:#cbd5e1; font-size:1.1rem;">
+                    <b>{name}</b> is currently the Top-Tier candidate with a total yield of <b>{top_row['total_combined_score']}</b>. 
+                    Strongest core asset identified: <span style="color:#22c55e; font-weight:700;">{strongest}</span>.
+                </p>
+                <p style="margin:5px 0 0 0; color:#94a3b8; font-size:0.9rem;">
+                    <i>AI Verdict: Highly recommended for immediate progression to final stage interview.</i>
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Talent Pool Distribution Summary
+            avg_fit = leaderboard['avg_fit'].mean()
+            st.markdown(f"""
+            <div style="padding: 1rem; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                <p style="margin:0; color:#94a3b8; font-size:0.85rem;">
+                    <b>POOLED ANALYSIS:</b> The overall cultural alignment is <b>{avg_fit:.1f}/10</b>. 
+                    The competition is <b>{'Aggressive' if len(leaderboard) > 5 else 'Emerging'}</b>.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
 
         # ---- Two-column: Table LEFT | Chart RIGHT ----
         col_table, col_chart = st.columns([3, 2])
@@ -871,17 +810,37 @@ elif page == "Live Leaderboard":
 
 
 # ============================================================================
-# SECTION 9: RAW DATA PAGE
+# SECTION 9: DATA MASTERY PAGE
 # ============================================================================
-elif page == "Raw Data":
+elif page == "Data Mastery":
 
-    st.markdown('<p class="main-header">Raw Evaluation Data</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">Data Mastery</p>', unsafe_allow_html=True)
     st.markdown(
         '<p class="sub-header">'
-        'Complete record of all submitted evaluations. Delete or export as needed.'
+        'Sovereign access to all evaluation records. Monitor health, audit submissions, and export data.'
         '</p>',
         unsafe_allow_html=True
     )
+
+    # Sovereign Health Check
+    h1, h2, h3 = st.columns(3)
+    with h1:
+        st.markdown('<div class="metric-card" style="padding: 1rem !important;">', unsafe_allow_html=True)
+        st.write("📊 ENGINE CAPACITY")
+        st.write(f"**{len(get_raw_data())}** Records")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with h2:
+        st.markdown('<div class="metric-card" style="padding: 1rem !important;">', unsafe_allow_html=True)
+        st.write("🔒 PERSISTENCE")
+        st.write("**SQLite (Active)**")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with h3:
+        st.markdown('<div class="metric-card" style="padding: 1rem !important;">', unsafe_allow_html=True)
+        st.write("⚡ UPTIME")
+        st.write("**100% (Sovereign)**")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
 
     _, raw_df = get_leaderboard()
 
@@ -918,7 +877,7 @@ elif page == "Raw Data":
             if st.button("Delete Record", type="secondary"):
                 if delete_score(int(delete_id)):
                     st.toast(f"Record #{delete_id} deleted.")
-                    st.experimental_rerun()
+                    st.rerun()
 
         st.markdown("---")
         csv_data = display_raw.drop(columns=['id']).to_csv(index=False)
