@@ -106,6 +106,13 @@ def get_raw_data():
             "SELECT * FROM scores ORDER BY submitted_at DESC",
             conn
         )
+    # Filter out corrupted data (special characters in names)
+    import re
+    valid_name_pattern = r"^[A-Za-z\s]+$"
+    raw_df = raw_df[
+        raw_df['candidate_name'].str.match(valid_name_pattern, na=False) &
+        raw_df['evaluator_name'].str.match(valid_name_pattern, na=False)
+    ]
     return raw_df
 
 def get_leaderboard():
@@ -643,8 +650,11 @@ if page == "Score Entry":
 
     # ---- Submission Handler (below both columns) ----
     if submitted:
+        import re
         if not candidate_name.strip() or not evaluator_name.strip():
             st.warning("Please enter both the Candidate Name and your Name.")
+        elif not re.match(r"^[A-Za-z\s]+$", candidate_name.strip()) or not re.match(r"^[A-Za-z\s]+$", evaluator_name.strip()):
+            st.error("Invalid name format. Only letters and spaces are allowed. No special characters like @, #, $, etc.")
         else:
             success = insert_score(
                 candidate_name.strip(),
